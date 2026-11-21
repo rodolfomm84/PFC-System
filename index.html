@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema PFC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: barra lateral preta (cores do escudo) + área de trabalho clara com tabelas densas */
+:root{
+  --ink:#141414;
+  --red:#C4122F;
+  --paper:#F5F4F3;
+  --card:#FFFFFF;
+  --line:#E3DEDD;
+  --muted:#6A6362;
+  --ok:#1E7A4C; --ok-bg:#E5F3EC;
+  --warn:#9A5B00; --warn-bg:#FCF1DE;
+  --bad:#A61B1B; --bad-bg:#FBE7E7;
+  --info-bg:#EEF0F3;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font:15px/1.45 var(--body)}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100%}
+aside{background:var(--ink);color:#fff;display:flex;flex-direction:column;gap:20px;padding:20px 14px;position:sticky;top:0;height:100vh}
+.brand{display:flex;gap:12px;align-items:center;padding:0 6px}
+.brand img{width:46px;height:46px;border-radius:4px;background:#fff}
+.brand b{font:700 24px/1 var(--display);letter-spacing:.04em;display:block}
+.brand small{color:#bdb6b5;font-size:12px}
+nav{display:flex;flex-direction:column;gap:2px}
+nav a{color:#e9e5e4;text-decoration:none;padding:9px 12px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;border-left:3px solid transparent}
+nav a:hover{background:#262424}
+nav a.on{background:#262424;border-left-color:var(--red);color:#fff;font-weight:600}
+nav .badge{background:var(--red);color:#fff;border-radius:10px;font-size:12px;padding:0 7px;font-weight:600}
+.roadmap{margin-top:auto;font-size:12px;color:#9d9695;border-top:1px solid #333;padding:12px 6px 0}
+.roadmap b{color:#d8d2d1;font-weight:600;display:block;margin-bottom:4px}
+main{padding:24px 28px 60px;min-width:0}
+h1{font:700 32px/1.1 var(--display);letter-spacing:.01em;margin:0;text-wrap:balance}
+h2{font:700 21px/1.2 var(--display);letter-spacing:.02em;margin:0 0 10px;text-transform:uppercase}
+h3{font-size:15px;margin:0 0 8px}
+.head{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:18px}
+.head p{margin:4px 0 0;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.grid{display:grid;gap:16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;border-top:3px solid var(--ink)}
+.tile.alert{border-top-color:var(--red)}
+.tile span{color:var(--muted);font-size:13px}
+.tile b{display:block;font:700 34px/1.1 var(--display);font-variant-numeric:tabular-nums;margin-top:2px}
+.tile small{color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;padding:9px 12px;border-bottom:1px solid var(--line);background:#FAF9F9;white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tr.click{cursor:pointer}
+tr.click:hover td{background:#FBF7F7}
+td.num,th.num{text-align:right}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.p-ok{background:var(--ok-bg);color:var(--ok)}
+.p-warn{background:var(--warn-bg);color:var(--warn)}
+.p-bad{background:var(--bad-bg);color:var(--bad)}
+.p-info{background:var(--info-bg);color:#3c4250}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:8px 14px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:#bfb7b6}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.pri:hover{background:#333}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{padding:4px 10px;font-size:13px}
+.btn.link{border:0;background:none;color:var(--red);padding:0;text-decoration:underline}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink)}
+input,select,textarea{border:1px solid #D3CCCB;border-radius:6px;padding:8px 10px;background:#fff;min-width:0}
+input:focus,select:focus,textarea:focus{border-color:var(--ink);outline:none}
+input.err{border-color:var(--bad);background:#FFF8F8}
+.form{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+.form .c1{grid-column:span 1}.form .c2{grid-column:span 2}.form .c3{grid-column:span 3}.form .c4{grid-column:span 4}.form .c5{grid-column:span 5}.form .c6{grid-column:span 6}.form .c8{grid-column:span 8}.form .c12{grid-column:span 12}
+fieldset{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:14px 18px 18px;margin:0 0 14px}
+legend{font:700 16px var(--display);text-transform:uppercase;letter-spacing:.05em;padding:0 6px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.banner{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:14px}
+.banner.warn{background:var(--warn-bg);color:#5d3900}
+.banner.bad{background:var(--bad-bg);color:var(--bad)}
+.banner.info{background:var(--info-bg)}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.steps{margin:0;padding-left:20px;display:grid;gap:6px}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.codes{background:#FAF9F9;border:1px dashed #cfc7c6;border-radius:6px;padding:10px;max-height:160px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;word-break:break-word}
+.big{font:700 40px/1 var(--display)}
+.bar{height:8px;background:#ECE8E7;border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ink)}
+dialog{border:0;border-radius:10px;padding:0;max-width:560px;width:calc(100% - 32px);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(20,20,20,.45)}
+.dlg-h{padding:16px 20px;border-bottom:1px solid var(--line);font:700 20px var(--display);text-transform:uppercase;letter-spacing:.03em}
+.dlg-b{padding:18px 20px;display:grid;gap:12px}
+.dlg-f{padding:12px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;background:#FAF9F9}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:grid;gap:8px;z-index:50}
+#toast div{background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:14px}
+#toast div.e{background:var(--bad)}
+.sep{height:1px;background:var(--line);margin:6px 0}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 12px;gap:10px}
+  nav{flex-direction:row;overflow-x:auto;flex:1 1 100%}
+  nav a{white-space:nowrap;border-left:0;border-bottom:3px solid transparent}
+  nav a.on{border-bottom-color:var(--red)}
+  .roadmap{display:none}
+  main{padding:16px}
+  .form .c1,.form .c2,.form .c3,.form .c4,.form .c5,.form .c6,.form .c8{grid-column:span 12}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHAAAABwCAIAAABJgmMcAAAidElEQVR42u19eXAU19XvOefe7pnRvoKMEEjsO8gyFgiwwCAEQkJsNhCwE2zKS+yyk+/5jyxVcSVVSaq+qvyZuFLPruTV8/PnLQaDAROwMcYEMKvtxCxhtyWMBAiEBmmm+97z/rhS0xoJIQlJxt/nrq6hxPR09z33rL9z7rl47ty5QCBw5swZZkZE+P7o4sHMzAwAgUBASim11rt3796wYcPQoUOJyHz3/dH5QylFRFLKS5cuZWZmStd1L168mJiYWF5ebq74nk+7eiAiM2/btq2qqkoycyAQyMvLy8/P/540d3KcP3/+0qVLEhGVUq7rMrPW2mhSoxcQ0c+t32sD/6G1xpYDAIjIcRwikoZ85gsiUkoZwgkhiOh7wnVgiwz/GWp6xJUxF5n/VUpdv37dTIL/go6tlrnYuyDmz84rI/N52yt7RHQ6/5L+a5iZiCzLsm075jLZ7o9ra2tfffXVCxcuSCm9G909flVnKN6zj9NaxxA3MTGxpKSkqKioHYJ6isC8JSLW1NS88sorJ06cICLvXredzJhxmtvGvEpP0csoKE/o+n56MjIy+vfvX1RUFMNnMobpzK29F/U/ych7u2T1vmqrJbo0ME/kbztOIYQQQmvtum63pd6zJx1MvN9K+ycgRrO1L/IxBqqtB9uByYvhTX8I0Xk172fqjn/ruq7xqO9E/L3HGYaIuQ/6jrbvcyu+ke1eJISQstVXtm0nJSVZlsXMSql2h0FE0Wj06tWr3it2Y5CJiYkJCQlNTU3mhrdiT2M5DZ/W1NREo9FuEzQhISE+Pt4MKmaCHcdpaGhol5PMo9vSQXbwJD/bFhUVPfvssykpKTHS4aldI+zRaPTYsWPr1q3bt29fVznU3Ke4uPipp54SQsQQNEYCDDtLKevq6n7zm98cOXKkq6xKRBMnTly8ePH48ePj4uKUUoZd/GLX1NR07Nixd99999NPP3Vd1/+IGCe9I4K2VRDMnJWVNXv27JSUlNu+6Ny5cwsKCl588cU9e/YAgOM4nR+klHLQoEFz5841BO3MUVtbm56e3iWlaUZ07733/u53v5s2bVpcXFwHPykpKZk9e/bvf//7d955RwjRgd7riEPb1ZKNjY2JiYleNOU3I95hdMUDDzzw5JNPHj9+/NKlS34/oZMOSmNjYzAYNL/ySBAj/sYc2bYdjUa74eoGg8HVq1fPnDlTCGGm3M9u5hojc4FAoKCgYNmyZfv27auqqhJCGKV3S8bvjB/r/WlISUTGGsRIvVG7JoodNWpUXl5eNyy+ub+J0zwr3Jaahp3NV96r+t+qY0di0KBB06ZNk1JGo1Gji9sO1lxshjNy5MghQ4Z4fNNZo9RJeWloaNixY0dNTY0Xcpln5ObmFhYWhkIhZg6FQsnJyUbvdMMfNKHI2bNn9+7dGw6HDV94F3gDsyzr6tWrNTU1fkJ3LGdmbrKzs5OTkxFRCBEOh/fu3XvmzBnzc89jyc7OnjZtWnx8PCKmpqYmJye36+R3n6AeF1y+fPm3v/3tkSNHvHEaquXn57/88stjx451HEdKeSu13UkXioiOHDny61//+uzZs5ZlOY7jZw2jScynEcBOCr7nCXlTUl1d/fvf/37nzp1++8HMY8aMefnllydNmmTub2bCQzzulKBKKc8ZsiwrZhhmYOfOnbt+/bonpP5AoNsBjOM40WjUPM4jqCE3Ihoqd+kRhgH90M+NGzdqa2sjkUjMo69cuRKJRCzLMk5SjCa81fzJLqk28yQD9/ldfc8V96bRcRzPqnTeaPh9NaOOjcXwOx4eB3kas6vhQ1sN6Gdb71vHcY4cOWJGceHChUuXLvm1yp3qUE+4DNw/cuRIo8v9DtbEiRONB3Mnwu4/UlNTx48fb5xfv+kLh8NfffVVY2NjD6Ik/lDbfF69evWPf/xjKBQCgEgk8s0335hgt2fcJv8cZmRk/OIXv6ivr/d7NkTUr1+/AQMGGEIbrxjuLFczbty4X/3qV5FIxD9twWDw8OHDf/jDH06ePNl7sJMRsmPHjvl9Aw976+ChXdChhnAmojD5khj/3+hZY9nr6uqMjNwJJJ6RkZGVlRUTLxlXxjBOrx4xPow3tI5RLtlV6NdD9f0IiPdgoxCuXLmyY8eOqqqqO8GBvFf3I1haa5Op7TNk1g/L+9nzTnWoFxoZflFKGYsUg7FrrS9fvrxu3bo///nP169f71KY1G7UFI1G/RrZPMWvBHqVlN6nf0Y7nkvZ1YkCgHA4vHHjxgsXLsS4hIY3Dx48eOTIkYsXLxoD0j0cyDD78ePHt2/f3tTU5D3CeDwnT568fPlytxMtnS9fkFKaeMwY/c48RXbVCBLR1atXX3rppUOHDnmOvScRWmvHcVzXNfrbeFfd5tCTJ0++9NJLX3/9tUEl/Hxq3EZD39sCFh2npG6l31JSUkpKSrKzs5n52rVru3btOnXqlF+r9pgfSkSRSORWRtz4wN0D0mMQP+PVNzQ0mJlrFyTvUhbEY2f/HbwwxO+cGWfmxz/+8bRp07TWZ8+evXLlyqlTpzqG97tAUAOmerGw35noGL3vnj8Y44T7I8IYiekq1BSTHfDilLY0Ymbbtk12MxQKdTINIbs91NsGYXfoBsbox7aEvpM58wJZ13VTU1NLS0tNSOK/88SJE7Oysoyq6XzWWnaVmv40C3wHqxPMm4fDYQMRMHNeXt7zzz9fU1PjB/EQMSkpKSMjw1zf1NTk2YOYJF33OdQ8vm8S4t2T6M4T9PTp0+fOnRs1apT5/8zMzMzMTD+MbQyscZKIqLq6urq6ujMGrbMAswF922bbe3bA/qDILwc9VRTk3bOmpmbDhg01NTWWZfmTyR7SakhpQMgbN2588sknJ06c8JD8HkCbtNaRSCQSiSilwuFw7/GpeZCBfv24WQ9qZ3PPdevWpaamrl27NisrS2vd9kEGCaqtrX3rrbdeeeWVcDjskd7vqHWUl++AVf/5z3/+53/+ZzAYJKJwOHzx4sVekvQ9e/a8+OKLhnFOnTp16dKlnkVAPO6rqan505/+tGvXrgkTJsTHx8fUVHmA75dffnnw4MG6urpOmg3ZSb1z6tSps2fPerlJE//0OJ9qrb/88ksjXFprzVor3bME9Xt1165d+8c//nH48GEvDe53noyeCYfDRlD8oXZnCcrMyIAMCCiIEJEAgcjDeo2iMSLZ48WOzSUUwK4T0dD81shEDALIIe6pWjt/ytYMp60N9KAQg8V41aD+/F1n8/IAoFxXuYqZFSvuXDUO9FC9um/0hnyaARhAc485D116k7ZVHZ4D6yWBWhWL3SIuov79+1++clkIoUATIgACAyIwAAADtMv5bMiA6L06trnA/5/svwAJgQGZEUAjMwICMoPQKAAdYMC7pf7fcZzMzMx2KyRkbP4dQbEeMDDnP174X5cvX0ZElxQiEQDpFq5BYGYGbWjMzIZQLaP1Ed43e60q9xAQ/AWUAEgKBTORZglaI4MGAaCBkEFodsXdEkp4CPekSZNiwL2bHMoIDOACa2BCTEhJmj9vnpC3NVmGxdgnpdxKYiGGi2P+s9X1DOACMIA07jH7GBrv0gU1hqB+cyI9wjSfzbwFLmvtOMCIQEaJ3yQimznRbeh1RxPPQIrARVAAUoPUDAoAFQtUBMi3LInoy6VAMej9LY0SMiAAGfuuGTQzERAyQItAc4tVwxYe64ExsJF3w5+sBAMyKgRFSACCgYlAICEQYLvmpS/TIR4p/erLXyR8syTc4z12FSIhAziAGGWOAjYHZzctSLOg99AwzG00gNbEiiWCRIcFYYCQbxWQeAT1Ihwv7u69KM5zVL0Y1Evkea8k/YMSSCwQFevGaM3ZM3y5Jq7R1YJAGrZE8PMz000m5VYqETskXWsbiMwMWiNrB4AS4lPHDpMpcU2gHVACxW19Xdd1T58+XVNT4xG0VznUIKemfm/YsGEpKSnmid5zpRfeGpqDRtSompwTH35y/d33QnUNQUZJzMgaEQCRGZsrRBABDbd6Cs1IMPEtBTzGc9JGZWsFrC9KLfJHz/7Vf9jJtgZ0kRAFGoXTnlCb3EFjY+Nf/vKX9evXezne3svUe7WFQojS0tJf/vKXxu33BwXNBYiNjY3mpZFZaW0lxk2a9sCXu/Y2HPgyGNXxDFFymY2LK4AFA4hbyXyLL9mOWcRmTcyaDUm1sXEMwCjiUGdnkOuCogAGWZImlzQh3mqCwBSGV1VVHT9+vC/te35+/ooVK/r16+fleg1i4rqutG07ISHh8OHDNTU1GRkZrnYpIFzm5HFDRjzy0OGTVe6Js7bjIgErBhCMgoGIQSBiu8JtognQ7Tm9CACszSWGoNwcCCEkuqi0JLYQgzZJF4G1YnAZJLaBGT2ozeCKnSmS6Sno75577nnmmWfuu+8+M51GJqLRaHV1dVpaGlmWNWvWrIEDB27atKnlZ8CsXQnpkycOWVlxPSs9bFuK0QVygZiZNAtmZL+35TvNv9zOiUb9Gr+h5UQGYmBgo1cYEJAR2VxsqH3blXR9cJgnBgKB1atXL1q0yKvKM9Zpw4YN9fX1JSUl5DjOgAEDKisrv/jii/Xr15ufCRKIoPun5iwuTS+fWZOeEBVBFHFMCAgWkgWEcCuScrOP1ea4mUBFMiciEgk0oS1gl7Rf3y/mFUKUlJSsXr06JSXFEwgp5WeffbZr166ZM2cOGTKkGUkaNWrUrFmz9uzZc/To0eZsu6QIAQ/oP/KRhxOmTLwGLFBIYEQQjASIgLL9kySIjk+BaE5JQiAKIgFIKABlixrAjqMGD/7pM/dTKTV+/Pjnn39++PDhRtUY1fnVV1+9//77M2bMmD59uuM4N8vUy8vLGxsbN27cmJqamp2drV0lwHKCGCwYPfqHDx8/V8uHT8VjKIKOlsiKkbn7vj3G/tUSLTTHptyjQVi3+dGrzgWAoUOHPvPMM4WFheZPr+Tx7bfftizLrH8AAPJcDWaeM2dOTU3NG2+8EYlEQAG5wNK6IThpakHOsvIr/VKaFJIWTaAcZOyNqK7FPbhtQBmzOLWXnCQhhG3bZsnAmjVrli9fHggETBmeMUc7d+6sra31LL4Q4uZKCwBIS0t79NFHa2trd+3apQWzAJuZCSJpocwlD8YvmlmVKMPEFklsDlO5VYzdTgZQtj5bkm4aSAMxUItREuAiuwQAxMAETHcD9uFRtri4eOnSpWaxj7dCZe/evTt37pw/f35eXp5XKUP+zGI0Gs3Pzy8uLn7jjTf++eW/pG0hQIIrGFDl9h+6ZqmcNvGSIAA7oKlDUnY6km/FFDc9/7sB9vRqxAoKCp5//vnBgwe7rmsMjFnq8Pe//33ixImFhYWO49xs7RDD4Uqp6dOnTy0q2rR169e1F0FIrZBZNCKFxgwf++iy0NhRYUQtkNHDQf2a0H/GEK8tlIexpGMv6Pr2ETshhOu6WVlZTz/9dHFxsZTSK46rq6t78803g8HgokWLTKrZUJ+5tWSZ4D8+Pn5heXnjjaa/vbuhoSGsAJClhUE3EEibPjl3VcWVexJqg44johqixAqbySIABINgENB8ejfXAApAtUZCCUCSJtIAWjNozS4AIAgkxhb2R/D/1dc9DpKSklasWFFZWWlKu7yk6YcffvjNN98sW7YsKSnJv3xCiDbgAzO7SqWmpi2prDh14ti+PbubM4WALohoWmJK6Yx+5XMakoONytECyESrwFFiF5kQJXTNm+EYfkb81gXevL/Wury8/Cc/+UlycrIXsGutDx06tGPHjiVLluTm5hrT1KpGsS2fE5FmPWni+Mry+R9se/+zQ4ekEIygERUKO3fgqB8+FJoyoS5BXkeOCgRAF9ghUMgEYAFiexIO37UGLZMmTXr88ccHDBjgXy5UVVW1bt26/Pz8goKCdoNdalsESs2fNKWgYNjQ3M3vrqu/coWAFKomAU4Axdi84SuW4MgR9SAJLWIUAIAukNbgAGhsjpbaQ+WbHQO+Fbca14m/VfYkouzs7GeffdYUh3rFOeFweP369f369Vu6dKkJPduihXSrzLVRppWLKmUo+Nabb+mmiA1EUmgitoLp06cO+sHSpkH3hCW6pIKspdYKIIIcRtdFNng7fKe6g3kuuRBi9erVixcv9ndhQMT333+/rq6uoqIiOTnZFIy3VW7UrrtAREAUVSqtX1Z55cJTp05+vHVbPMiQi9LR7LoqPSV7wYNZ82deSQywJAtIMBNrlyAiUON3st2aoY5lWZWVlY8//rihmiExER04cGD//v0VFRXDhg0znpO/9PmWIn+zgQoioHRcnjjp3rmlpXv27T76xRc2CnJRaddBFgP7jVxRGZg64SJxxJLE2mYXWUMr4Am+Q53CDHVGjBjx1FNPDR061BSMRCIRKeXZs2ffeuutcePGTZgwoW0zjVsStBWfahIsbbRB89Ti6fcMyX3z7beqLlSLQMAFoRgdEYgbO2rgowuvThp8RjY65CCogFbBXq4u6dV80cCBA3/6058WFhaa+NKArXV1dZs3bx48eHBlZaVt2x0Dr7cmKAIorV1XgbaDwWUrHrYS47bv2tnoRIWUWiOx0Ja4Z3bR8MeW3MhOaRRsAQWRBDCBBvT7QshAGkkB6rsy0W5YLBQKrVy58qGHHoqLi/PSmZZlbdq06cSJExUVFSkpKSbR0oFfSB2GCigtyYjIkJmcVr5w4YFDB9/btBFACyGiyI6NOjFhcEnp4PnljXEZSgtEQgFBZptZtAqKSCNpBH2X0dEsrzKf5eXlP/rRjxISEry+CVLKgwcPfvbZZ4sWLcrNzTWhZ8d5wI6+QyIhhIVkk9BKjRwytKyk9PCBQydO/FsIicAKKQq27Ddw6MqlCTOmXAjaDQSSwAVXgaPhOyD7hjpa6/z8/KefftpgnSb1JoQ4derU+vXr8/Pzp0+fblKZbft1dJqg7UXks2bNGj1m9H+99v+qzp8JIFoaAyC0pQLjcnJXVYTHDr5GDmt0OHoD3BvoRslhdDW6mrTQKLUUTHeJufIqvl3Xzc7OXrt27eTJk72COtu2Gxsb161bR0QLFiyQstPr4Ds/kwYcnDNnDhFt+/v74YbrWjmsHGCIxAXjZt+XvXKBM3CgA5JIasEuuYpUVCqXdMsE3V2LR4whSkpKWr169YoVK7xWi4jY2Nj43nvv1dfXr1271vhPPUxQEzAopTIz+61du/b06TOf7N7luhEAxUBRDQ0podxVlRkLF1xMDNywpUWYoFSc1pIVsL6rmrl6pbOmhHj27Nlr1qwJBAL+pUOff/75hx9+OHfu3Ozs7C7lU6mrDQiQIDs7+4EZxbv37j1ZfZ4JkSEIlgW2TEobvKQsMGtyOGgppYlYIluKEIkFu0Iz8l1CTaMNA4FAUVHRc889Zxp6m7QwAJw/f37z5s0zZ84sLCy8bV+h7hPUCwukFA8+OGfUuHH/tW7dhctXNLAEDGgkxMDEYYN/uESPGnrZthsxwFpKRjLVAOwDO79t7MN8ZmZmrl27dvr06R4Eh4jXr19//fXXbdsuKyszGf+uWbnuBRXBYPDBB2YLh9a98U4kEgUGoQEkRkJW6rT7+y+edz4pdMmyHDsURfYYsyXJDLdAoPvI3zTyHhcXt3Llyrlz5wKA67qRSMRkUnfs2NHU1GSwTq+dpr84v4dFHpBQSEep/pkDVi546JuqCx/u/sSxpUuCSBBqNzVhUOW8Easqr6WEGpAZCRhcNjnS5mITjaTRH/IzsCbWCNyrPr/hRMOMc+bMeeyxx9LS0kzQaZhx3759H3/88ezZs03o6UXrvcKhvoIFRESnKTpu9JjCgslbtv39yLF/kW2xJgLpMtDQrFErFsZPnnA5RIxCsPkFeKU7xNqcHsSsQTBJxt51qrwRDB8+/NlnnzUwh6GvEKK2tnbTpk2FhYWTJ0/28v4eEtpbIu/d2ArZ2sJZ80ruHTth67oNtdUXiKTjalKggEPjho17dIkYm1dvEUqJZMpudHMxHWgEhS010BpJo9AouNfY0yOl1nrAgAE/+9nPjK/urQOrr69/7bXXUlNTS0pKbNv2fHjDvL1IUENTgSQJFLjJScmLFi5suh5+629/a2i8wcygQAFBMJA5475hi+ddz0q6zg6BJnAVOQq1sZpGn2pQmoDRwM7UB4YoLi7uBz/4QVlZmW3b3toZpdT27dsvXLiwaNGilJQUfxazy6HXHa3sBVRKZWRkrFy5sqqqateuXZaUChiYQKFKSexX8WDS4lk1iaEbLpDWRo3GzA1zX1QpeRxaXl7++OOPp6WlefWkiLh///49e/ZUVFSMGDHCS3h0M5a987fUWo8fP764uPijjz46fOSwFJK0ZBYOCj04a9jqSru44IotFBCz1qhN8aJJkPiqb7FXVyGZ95w0adKTTz45ZMgQ05HF9OyqqanZunXr+PHjJ0+ebPp+3MliSLqTJlGewtZaz5gxIycnZ8O7G65cviJRskaLZRTRHjlk9I+WhsYMqwdhg0WMGkETMDafZk0ZNlctcu9VKeXk5Dz33HPTpk3zIDjbtq9du2bKuZYvX250Zec9pB7mUI+mJklgesbGx8e/8dabVxrqJaLQJCEUDcSlzyrMW7mwcWBmGAOusDVpYGZ9089nZuyFdgPQUm6IiImJiatWraqoqPC3UGlqatq8efOpU6cqKipCoZAQIhAIGP+p21JPPdUmwfSUKC8vP3z40Mcf73C1cpgBBbJUwfj+FbPSymbVpMU1CdZMUdYMpqSW0WQ5e0faPUYrLS1du3atqUvwhP3EiROfffbZ0qVLhwwZ0lPLc3q0UwLD6NGjH33kkYOf7vv3udPKFgq0IAEo9aCsoY8tDcy692qAb4B2gBXeLHHAXl63MXbs2GeeeWbo0KH+Ko+TJ0++8sor99133/3339+Du3L0pKfCwMxcNGXqiBEj//f/+cvZi1WMCEppAC3t4MjcoasXyVFDFDEjaPJHSthLaDwz5+bmvvDCC4WFhV7fdLOke8uWLYMGDZo9e3bPLh2jHvdLAsHAgvnzB/TP2r55C7kuagSNgiw3GJcx9b5hax6+mpMeIbRZACIDCNAWKABwqWfWkjVvwyMlAMTHxz/66KMLFy60LMsrT4xGoxs2bPjqq6+WLVuWlpbWtk333cKhLY1eMD0zo6yk9Ozxf2/dtFlIaWAmhQhJ8ZmlD/RfPP9aSlIEkBgAwQXlgNKgAJm4Z17DK+soLS1dtWpVQkKCl3QzJfH79+8vKysbPHiwV6B8F3FobHsDgqhWo0ePnvVA8Qc7dvzrX/8yVYAEqAE4u/+QxeWiYOylIEXY1QIjEhtJa1ISFYHuEfFXSjmOM2nSpJ///OfDhg3zFtmZDPv69etnzZpVXFzsb8h/14l864VfoLV+cM6c+++f/Oabb54/f56oefFrk4DQvSPzn/4hjh1ZbwUUoQPIIIRWUitgQFCoqVVAhbfv/ReDLmqt+/fv/8QTT4wZM8ZbnUlE9fX1b7/9dmpq6owZM7yKzp4dfa+Ez6aHVDAuOLdkbiAQ2Lp1a3PLSiQgGQnaiUX35q5aiLk52pWWRq2VBgBq9vNbL1+8PaDndYoFX/Pmp556avHixaZC3tDUcZwtW7Y0NjYuX748LS2tl9p9UG+YV1P3w5qzsrIeeuihM2fObNu2TWtNTEElmSmampS1aE7/8gebkpNstIOWRbZ0uhsneSG5B7CXlpY+9thj6enpHgonhDhw4MC+fftmzJiRl5dn+tD0RqhLveROe1vjjBw5sri4eOfOnZ9//rkliFwmlloAZGdmLSkN3D+uTsomy2ZER1Lz4qTmwijWrKETiRP/1oVa66lTpz799NM5OTlaa2OdpJSnT582WGdRUVGX9n+4Wwjq7ypeUlIyduzYTZs2na+uAkQJKBiioKxxgwf8qDI8Pq/W0Y4rpMKby5S6AkF5jYlNSfyaNWu8DLup9airq3vnnXcCgYDZB8frI9YbkS71QUZMCGGC6PXvvtvQdEMiBiJagriREEiZM2XAD+ZHszNdRZJNWT55qSfqnMU3j9Bam4C9rKzM3227qalp586d9fX1q1atMtuT9Oo2gdQ3lYLp6enLly+v+ur87oP7oq4jUSJLF2Rjaii3fHbu/Fnh5LhGIsaA1qSJFSptcFVohk1uu8pTCDFv3rwnn3zSdGr3moMcPHjwgw8+KCkpMf6Tf0+N74wObVs8xMzDhw2bOfvBN/729sHPP4OAUFqRAsagdU/W0OWL9LT8b5JtFZDoMmgd0axYaJQAFjAwOC2r9WMRGW+TnrFjxz7xxBN5eXneXnVCiOrq6i1btsycObOgoMCUNViWZfS7v7tFT4Jb0Fe1Ba7rFhUVnbnw1ZYtG4cNys3MyIwwaw1RKa3xecPWLK1uqrsCUQTNDEBoVqUBE4BmiC2K9nJBpo12Xl7ec889N2XKFK8jAADU1NS8+uqr6enpJSUlpjDE36Ttu2SU2vo0ppYvOT6hckG5LfBvr78WCd9gwiZSDTY0JVo5xZOHVsy9mmA3IbuuG0AMABAzI2sC3Xqlkn99qlIqLi5u6dKlZjWRt9sUEX300UfHjx8vKytLSEjo7fYENzXPCy+8kJCQ0Hutj7w6FiJSWgfjQ6nJyR9t3RaQ9shRI8PKdRkIbbat5HuygikpGYNz7NR4BLJAAiITK2INLEC0LcQ2/dctyyorK8vMzDShuuu6lmXt2rXr448/fuSRR8aMGePfDan3eNMYQNmX9RokgLU7aeLEpocf2rJhS07ekJzRI1wUApGBkwbcMzkryyRBkU1/GFAIDIStUVMvmjR7cZWVlfmzxER07ty5119/vaioaMKECV4H1r7pd9wXRulml3hkrVTEcSdNnpyTN+T/vvLXhuqaBI3CUVIRCqlsi6WFaAGSbqnhQUZsvYSSWh8mMPNmrqGhYcOGDaNGjSovLw8Gg97WdWax5neeoK3FXyBaDBQIhZY8vCw1M+P99zY31YelQtKCQTJJIItRaiImYMLOdCX3dxlj5o0bN1ZVVVVUVKSmpvZx37G+JigB2WTZZCsNaf0yFiyq+PzoP7d9uA2IFSpAQCBszicjIyrT94Zvs4bMKwCxbXv//v3Hjh1bvHjxoEGDmpqa+r49Zp8SFAGQERiIqDESyR2WV7lk0aFDh44e/dIKSK1V2xRTS3eX29g9s/vI0aNH169fX1BQMGXKlN5oiH3XERQAiJoXkgZsWwgxvfiBQUPz1m149+uvq4QQjhPVWquWNsm3knXDj/4W6UR07dq1rVu3pqenl5aWGkDEbDzx35pDEZCACKi5Hw5prRcuXBgKhT7cvv1G+AYhmRw9MQhACUimbo+w3cVrHtaptd6yZUt1dfXq1av9XuB/c5GP9YGJmDk9PX3hwoVffP75xx/tbNU4usN0qL8eXkp56NChAwcOzJ8/Pzs7u+3Swf8pBIWWgGf48OFlCxZ88OEHR48e9Xoydewz+kvfT58+vXHjxilTpkydOrVXsc67nqC+wHTGjBkFBQWvvfaat6FzB364iTgNCGJWE/Xr12/OnDnePhT/cwnqkTUQCJSUlDDze++9522O2gEeaDZijUQi27dvr6urW758eWpqag/uGvJdJahXccbM/fv3X7t2rel81jGjmSVotm3v3r17y5Ytc+fOzczM7Ma2vr0yom/LGrbbQyInJ2fmzJnbt2//9NNPOy7lIKLz589/9NFH8+bNM16nx5vfCpN6o5CO4/j36YRvb+GQUYuFhYXnz5//4IMP8vLy0tLS2oXWza57f/3rX0Oh0IwZM/xYiYcu9/FwzHs6jvP/AW825IC+6G7wAAAAAElFTkSuQmCC" alt="Escudo PFC"><div><b>PFC</b><small>Secretaria do clube</small></div></div>
+    <nav id="nav">
+      <a href="#inicio" data-v="inicio">Início</a>
+      <a href="#socios" data-v="socios">Sócios</a>
+      <a href="#mensalidades" data-v="mensalidades">Mensalidades</a>
+      <a href="#catraca" data-v="catraca">Catraca <span class="badge" id="bdgCat" hidden></span></a>
+      <a href="#importar" data-v="importar">Importar Excel</a>
+      <a href="#config" data-v="config">Configurações</a>
+    </nav>
+    <div class="roadmap"><b>Próximas fases</b>Financeiro e caixa · Contas a pagar · Sauna · Eventos e bingos · Parceiros · Funcionários · Conselho · Consumo (água e luz) · Relatórios</div>
+  </aside>
+  <main>
+    <div id="banners"></div>
+    <div id="view"></div>
+  </main>
+</div>
+<dialog id="dlg"><form method="dialog" id="dlgForm"><div class="dlg-h" id="dlgT"></div><div class="dlg-b" id="dlgB"></div><div class="dlg-f"><button type="button" class="btn" id="dlgX">Cancelar</button><button type="submit" class="btn pri" id="dlgOk">Confirmar</button></div></form></dialog>
+<div id="toast" aria-live="polite"></div>
+<script src="config.js"></script>
+<style>
+#login{position:fixed;inset:0;background:var(--ink);display:grid;place-items:center;z-index:100;padding:16px}
+#login[hidden]{display:none}
+#login form{background:var(--card);border-radius:10px;padding:28px;width:100%;max-width:360px;display:grid;gap:14px}
+#login img{width:72px;height:72px;justify-self:center}
+#login h1{text-align:center;font-size:28px}
+#login .msg{font-size:13px;min-height:1em;margin:0}
+#login .msg.e{color:var(--bad)}
+#login .dica{background:var(--warn-bg);color:#5d3900;border-radius:6px;padding:8px 10px;font-size:13px;margin:0}
+.quem{font-size:12px;color:#bdb6b5;padding:8px 6px 0;border-top:1px solid #333;display:grid;gap:6px;word-break:break-all}
+.quem button{background:none;border:1px solid #555;color:#e9e5e4;border-radius:6px;padding:4px 10px;cursor:pointer;justify-self:start}
+.faixa-teste{background:#F2C14E;color:#141414;font-size:13px;font-weight:600;padding:6px 12px;border-radius:6px;margin-bottom:12px}
+</style>
+<script>
+/* Adaptador para rodar fora do claude.ai.
+   PFC_BACKEND = "teste": dados guardados só neste navegador (para testar as telas).
+   Próximo passo: "supabase". */
+window.PFC_HOSPEDADO = true;
+(function(){
+  const BACKEND = window.PFC_BACKEND || 'teste';
+  const pronto = fn => document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', fn) : fn();
+
+  /* ---------- motor de teste: banco no navegador (localStorage) ---------- */
+  function bancoLocal(){
+    const CHAVE = 'pfc-teste-db';
+    let store = new Map();
+    const carregar = () => { try { store = new Map(Object.entries(JSON.parse(localStorage.getItem(CHAVE) || '{}'))); } catch(e){ store = new Map(); } };
+    const gravar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(Object.fromEntries(store))); } catch(e){ throw {code: 'quota_exceeded', message: 'Espaço do navegador cheio'}; } };
+    carregar();
+    const ouvintes = new Set();
+    const avisar = () => setTimeout(() => ouvintes.forEach(f => { try { f(); } catch(e){ console.error(e); } }), 0);
+    window.addEventListener('storage', ev => { if (ev.key === CHAVE){ carregar(); avisar(); } });
+    const copia = d => d === undefined ? undefined : JSON.parse(JSON.stringify(d));
+    const snapDoc = (id, d) => ({id, exists: d !== undefined, data: () => copia(d), metadata: {fromCache: false, hasPendingWrites: false}});
+    let seq = 0; const novoId = () => Date.now().toString(36) + (++seq).toString(36) + Math.random().toString(36).slice(2, 7);
+    function consulta(col, filtros, ordem, lim){ const q = {
+      where: (f, op, v) => consulta(col, [...filtros, [f, op, v]], ordem, lim),
+      orderBy: (f, dir) => consulta(col, filtros, [f, dir || 'asc'], lim),
+      limit: n => consulta(col, filtros, ordem, n),
+      _rodar(){
+        let docs = [];
+        for (const [p, d] of store){ const i = p.lastIndexOf('/'); if (p.slice(0, i) !== col) continue;
+          if (filtros.every(([f, op, v]) => op === '==' ? d[f] === v : op === '!=' ? d[f] !== v : op === '<' ? d[f] < v : op === '<=' ? d[f] <= v : op === '>' ? d[f] > v : op === '>=' ? d[f] >= v : op === 'in' ? v.includes(d[f]) : true)) docs.push(snapDoc(p.slice(i + 1), d)); }
+        if (ordem){ const [f, dir] = ordem; docs.sort((a, b) => { const x = a.data()[f], y = b.data()[f]; return (x > y ? 1 : x < y ? -1 : 0) * (dir === 'desc' ? -1 : 1); }); }
+        if (lim) docs = docs.slice(0, lim);
+        return {docs, size: docs.length, empty: !docs.length, docChanges: () => [], metadata: {fromCache: false, hasPendingWrites: false}};
+      },
+      async get(){ return q._rodar(); },
+      onSnapshot(next){ const f = () => next(q._rodar()); ouvintes.add(f); setTimeout(f, 0); return () => ouvintes.delete(f); }
+    }; return q; }
+    function ref(path){ return { id: path.slice(path.lastIndexOf('/') + 1), path,
+      async get(){ return snapDoc(this.id, store.get(path)); },
+      async set(d){ store.set(path, copia(d)); gravar(); avisar(); },
+      async update(d){ if (!store.has(path)) throw {code: 'invalid_argument', message: 'documento não existe'}; store.set(path, {...store.get(path), ...copia(d)}); gravar(); avisar(); },
+      async delete(){ store.delete(path); gravar(); avisar(); },
+      onSnapshot(next){ const f = () => next(snapDoc(this.id, store.get(path))); ouvintes.add(f); setTimeout(f, 0); return () => ouvintes.delete(f); },
+      collection: sub => colecao(path + '/' + sub)
+    }; }
+    function colecao(c){ const q = consulta(c, [], null, 0); q.path = c; q.doc = id => ref(c + '/' + (id || novoId())); q.add = async d => { const r = q.doc(); await r.set(d); return r; }; return q; }
+    return { doc: ref, collection: colecao, apagarTudo(){ store = new Map(); gravar(); avisar(); }, total: () => store.size };
+  }
+
+  let resolverLogin; const logado = new Promise(r => resolverLogin = r);
+  const db = BACKEND === 'teste' ? bancoLocal() : null;
+  const SESSAO = 'pfc-teste-sessao';
+
+  const downloads = { async save({filename, data}){
+    const blob = data instanceof Blob ? data : new Blob([data]);
+    const url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000); return {status: 'saved'};
+  }};
+  const user = { async can(){ return true; }, isOwner(){ return false; }, canEdit(){ return true; } };
+  window.claude = { async use(nome){
+    if (nome === 'downloads') return downloads;
+    if (nome === 'user') return user;
+    if (nome === 'db'){ if (!db) return null; await logado; return db; }
+    return null;
+  }};
+
+  pronto(() => {
+    const logo = document.querySelector('.brand img')?.src || '';
+    const box = document.createElement('div'); box.id = 'login';
+    box.innerHTML = `<form id="lgForm" novalidate>
+      <img src="${logo}" alt="Escudo PFC"><h1>Sistema PFC</h1>
+      ${db ? `<p class="dica"><b>Modo de teste.</b> Entre com qualquer e-mail e a senha <b>teste</b>. Os dados ficam guardados só neste navegador.</p>
+      <label>E-mail<input id="lgEmail" type="email" autocomplete="username" required></label>
+      <label>Senha<input id="lgSenha" type="password" autocomplete="current-password" required></label>
+      <button class="btn pri" type="submit" id="lgBtn">Entrar</button>` : ''}
+      <p class="msg e" id="lgMsg">${db ? '' : 'Motor de dados "' + BACKEND + '" ainda não disponível nesta versão. Em config.js, use PFC_BACKEND = "teste".'}</p></form>`;
+    document.body.append(box);
+    if (!db) return;
+    const entrar = email => {
+      box.hidden = true;
+      const fx = document.createElement('div'); fx.className = 'faixa-teste'; fx.textContent = 'MODO DE TESTE: os dados ficam só neste navegador. Não use a lista completa de sócios reais aqui.';
+      document.querySelector('main').prepend(fx);
+      const q = document.createElement('div'); q.className = 'quem';
+      q.innerHTML = `<span>Conectado como<br><b style="color:#fff"></b></span><button type="button" id="qSair">Sair</button><button type="button" id="qZerar">Apagar dados de teste</button>`;
+      q.querySelector('b').textContent = email;
+      q.querySelector('#qSair').onclick = () => { try { sessionStorage.removeItem(SESSAO); } catch(e){} location.reload(); };
+      q.querySelector('#qZerar').onclick = () => modal({titulo: 'Apagar dados de teste', perigo: true, ok: 'Apagar tudo',
+        corpo: `<p style="margin:0">Apagar todos os ${db.total()} registros de teste guardados neste navegador? Não dá para desfazer.</p>`,
+        onOk: async () => { db.apagarTudo(); toast('Dados de teste apagados.'); }});
+      document.querySelector('aside').append(q);
+      resolverLogin();
+    };
+    let sessao = null; try { sessao = sessionStorage.getItem(SESSAO); } catch(e){}
+    if (sessao) return entrar(sessao);
+    setTimeout(() => document.getElementById('lgEmail')?.focus(), 50);
+    document.getElementById('lgForm').addEventListener('submit', ev => {
+      ev.preventDefault();
+      const email = document.getElementById('lgEmail').value.trim(), senha = document.getElementById('lgSenha').value;
+      const m = document.getElementById('lgMsg');
+      if (!/^\S+@\S+\.\S+$/.test(email)){ m.textContent = 'Digite um e-mail válido.'; return; }
+      if (senha !== 'teste'){ m.textContent = 'Senha incorreta. No modo de teste a senha é: teste'; return; }
+      try { sessionStorage.setItem(SESSAO, email); } catch(e){}
+      entrar(email);
+    });
+  });
+})();
+</script>
+
+
+<script>
+/* ===================== utilidades ===================== */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const BRL = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'});
+const money = v => BRL.format(Number(v) || 0);
+const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const iso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const hoje = () => iso(new Date());
+const compAtual = () => hoje().slice(0,7);
+const fmtData = s => { if (!s) return '—'; const [y,m,d] = String(s).split('-'); return d ? `${d}/${m}/${y}` : s; };
+const fmtComp = c => { if (!c) return '—'; const [y,m] = c.split('-'); return MESES[+m-1] + '/' + y; };
+const fmtCompCurta = c => { const [y,m] = c.split('-'); return m + '/' + y; };
+function addDias(s, n){ const [y,m,d] = s.split('-').map(Number); return iso(new Date(y, m-1, d+n)); }
+function diasEntre(a, b){ const [y1,m1,d1]=a.split('-').map(Number), [y2,m2,d2]=b.split('-').map(Number); return Math.round((new Date(y2,m2-1,d2) - new Date(y1,m1-1,d1)) / 86400000); }
+function ultimoDia(comp){ const [y,m] = comp.split('-').map(Number); return `${comp}-${String(new Date(y, m, 0).getDate()).padStart(2,'0')}`; }
+function vencimentoDe(comp, dia){ const ult = +ultimoDia(comp).slice(8); return `${comp}-${String(Math.min(Math.max(1, dia||10), ult)).padStart(2,'0')}`; }
+function idade(n){ if (!n) return null; const h = hoje(); let a = +h.slice(0,4) - +n.slice(0,4); if (h.slice(5) < n.slice(5)) a--; return a; }
+const soDig = s => String(s ?? '').replace(/\D/g, '');
+function maskCPF(v){ const d = soDig(v).slice(0,11); return d.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
+function maskFone(v){ const d = soDig(v).slice(0,11); if (d.length <= 10) return d.replace(/(\d{2})(\d)/,'($1) $2').replace(/(\d{4})(\d)/,'$1-$2'); return d.replace(/(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d)/,'$1-$2'); }
+function maskCEP(v){ return soDig(v).slice(0,8).replace(/(\d{5})(\d)/,'$1-$2'); }
+function cpfValido(c){ c = soDig(c); if (c.length !== 11 || /^(\d)\1+$/.test(c)) return false;
+  let s = 0; for (let i=0;i<9;i++) s += +c[i]*(10-i); let r = (s*10)%11; if (r===10) r=0; if (r !== +c[9]) return false;
+  s = 0; for (let i=0;i<10;i++) s += +c[i]*(11-i); r = (s*10)%11; if (r===10) r=0; return r === +c[10]; }
+function parseMoney(v){ if (typeof v === 'number') return Math.round(v*100)/100; v = String(v ?? '').replace(/[^\d,.-]/g,''); if (v.includes(',')) v = v.replace(/\./g,'').replace(',','.'); const n = parseFloat(v); return isNaN(n) ? 0 : Math.round(n*100)/100; }
+const moneyInput = v => (Number(v)||0).toFixed(2).replace('.', ',');
+const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+const cmpCod = (a, b) => String(a).localeCompare(String(b), 'pt-BR', {numeric:true});
+const agoraISO = () => new Date().toISOString();
+
+function toast(msg, erro){ const d = document.createElement('div'); d.textContent = msg; if (erro) d.className = 'e'; $('#toast').append(d); setTimeout(() => d.remove(), erro ? 6000 : 3200); }
+function erroMsg(e){ const c = e && e.code;
+  if (c === 'quota_exceeded') return 'O banco de dados chegou ao limite de registros. Avise o responsável pelo sistema.';
+  if (c === 'permission-denied') return 'Seu usuário não tem permissão para alterar os dados. Fale com o administrador do sistema.';
+  if (c === 'invalid_argument') return 'Sem permissão para alterar os dados, ou registro inválido. Peça acesso de Colaborador ao dono do sistema.';
+  if (c === 'revoked') return 'O acesso a esta página foi alterado. Recarregue a página.';
+  return 'Não foi possível salvar agora. Verifique a internet e tente de novo.'; }
+async function comRetry(fn){ for (let i=0;;i++){ try { return await fn(); } catch(e){ const c = e && e.code; if ((c==='unavailable'||c==='resource_exhausted'||c==='resource-exhausted'||c==='deadline-exceeded') && i < 4){ await new Promise(r => setTimeout(r, 500*(i+1) + Math.random()*400)); continue; } throw e; } } }
+async function pool(items, n, fn, prog){ let i = 0, feito = 0; const erros = [];
+  async function w(){ while (i < items.length){ const k = i++; try { await comRetry(() => fn(items[k])); } catch(e){ erros.push([items[k], e]); } feito++; prog && prog(feito, items.length); } }
+  await Promise.all(Array.from({length: Math.min(n, items.length)}, w)); return erros; }
+
+/* ===================== diálogo ===================== */
+let dlgOnOk = null;
+function modal({titulo, corpo, ok = 'Confirmar', perigo = false, onOk, onOpen, semCancelar = false}){
+  $('#dlgT').textContent = titulo; $('#dlgB').innerHTML = corpo;
+  const b = $('#dlgOk'); b.textContent = ok; b.className = 'btn ' + (perigo ? 'red' : 'pri'); b.disabled = false; b.hidden = !onOk && ok === null;
+  $('#dlgX').textContent = semCancelar ? 'Fechar' : 'Cancelar';
+  dlgOnOk = onOk; $('#dlg').showModal(); onOpen && onOpen($('#dlgB'));
+  const f = $('#dlgB input, #dlgB select'); f && f.focus();
+}
+$('#dlgX').onclick = () => $('#dlg').close();
+$('#dlgForm').addEventListener('submit', async ev => {
+  ev.preventDefault(); if (!dlgOnOk){ $('#dlg').close(); return; }
+  const b = $('#dlgOk'); b.disabled = true;
+  try { const r = await dlgOnOk($('#dlgB')); if (r !== false) $('#dlg').close(); }
+  catch(e){ console.error(e); toast(erroMsg(e), true); }
+  finally { b.disabled = false; }
+});
+
+/* ===================== estado ===================== */
+const S = {
+  db: null, user: null, dl: null,
+  socios: new Map(), categorias: new Map(), abertas: [], mes: new Map(), hist: [], mensIdx: new Map(),
+  config: {nomeClube:'PFC', diaVencimento:10, toleranciaDias:10, incluirDependentes:true},
+  catraca: {bloqueados:[], confirmadoEm:null},
+  comp: compAtual(), view: 'inicio', ficha: null, fin: new Map(),
+  pronto: false, unsubMes: null, unsubHist: null, carregou: {socios:false, cat:false, abertas:false}
+};
+const CONTAS = {caixa:'Caixa físico', sicoob:'Banco Sicoob'};
+const FORMAS = [['dinheiro','Dinheiro','caixa'],['pix','PIX','sicoob'],['boleto','Boleto Sicoob','sicoob'],['transferencia','Transferência','sicoob'],['debito','Cartão de débito','sicoob'],['credito','Cartão de crédito','sicoob']];
+const SITUACOES = {ativo:'Ativo', suspenso:'Suspenso', desligado:'Desligado'};
+const PARENTESCO = ['Cônjuge','Filho(a)','Enteado(a)','Pai/Mãe','Neto(a)','Outro'];
+
+function indexMens(list){ for (const m of list) S.mensIdx.set(m.id, m); }
+function calcFin(){
+  const lim = hoje(), tol = +S.config.toleranciaDias || 0, fin = new Map();
+  for (const m of S.abertas){
+    let f = fin.get(m.socioId); if (!f){ f = {abertas:[], vencidas:[], devido:0}; fin.set(m.socioId, f); }
+    f.abertas.push(m);
+    if (addDias(m.vencimento, tol) < lim){ f.vencidas.push(m); f.devido += +m.valor || 0; }
+  }
+  S.fin = fin;
+}
+function listaBloqueio(){
+  const out = [], incDep = S.config.incluirDependentes !== false;
+  for (const s of S.socios.values()){
+    const f = S.fin.get(s.id); let motivo = null;
+    if (s.situacao === 'desligado') motivo = 'Desligado';
+    else if (s.situacao === 'suspenso') motivo = 'Suspenso';
+    else if (f && f.vencidas.length) motivo = 'Inadimplente: ' + f.vencidas.length + (f.vencidas.length > 1 ? ' mensalidades' : ' mensalidade');
+    if (!motivo) continue;
+    out.push({codigo: String(s.matricula), nome: s.nome, tipo: 'Titular', motivo, s, devido: f ? f.devido : 0, meses: f ? f.vencidas.length : 0});
+    if (incDep) (s.dependentes || []).forEach(d => d.codigo && out.push({codigo: d.codigo, nome: d.nome, tipo: 'Dependente', motivo, s, devido: 0, meses: 0}));
+  }
+  return out.sort((a,b) => cmpCod(a.codigo, b.codigo));
+}
+function diffCatraca(){
+  const atual = listaBloqueio(), conf = new Set(S.catraca.bloqueados || []), set = new Set(atual.map(x => x.codigo));
+  return {atual, bloquear: atual.filter(x => !conf.has(x.codigo)), liberar: [...conf].filter(c => !set.has(c)).sort(cmpCod)};
+}
+function nomePorCodigo(cod){
+  const [mat, dep] = String(cod).split('-');
+  for (const s of S.socios.values()) if (String(s.matricula) === mat){ if (!dep) return s.nome; const d = (s.dependentes||[]).find(x => x.codigo === cod); return d ? d.nome + ' (dep.)' : s.nome + ' (dep.)'; }
+  return '(cadastro removido)';
+}
+const sociosOrd = () => [...S.socios.values()].sort((a,b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
+function proximaMatricula(){ let mx = 0; for (const s of S.socios.values()){ const n = parseInt(soDig(s.matricula), 10); if (n > mx) mx = n; } return String(mx + 1); }
+function valorDoSocio(s){ const c = S.categorias.get(s.categoriaId); if (c && c.isento) return 0; if (+s.valorEspecial > 0) return +s.valorEspecial; return c ? +c.valor || 0 : 0; }
+function finPill(s){
+  if (s.situacao !== 'ativo') return '<span class="pill p-info">—</span>';
+  const c = S.categorias.get(s.categoriaId); if (c && c.isento) return '<span class="pill p-info">Isento</span>';
+  const f = S.fin.get(s.id); if (f && f.vencidas.length) return `<span class="pill p-bad">${f.vencidas.length} em atraso</span>`;
+  if (f && f.abertas.length) return '<span class="pill p-warn">A vencer</span>';
+  return '<span class="pill p-ok">Em dia</span>';
+}
+const sitPill = s => `<span class="pill ${s==='ativo'?'p-ok':s==='suspenso'?'p-warn':'p-info'}">${SITUACOES[s] || s || '—'}</span>`;
+const statusPill = m => m.status === 'pago' ? '<span class="pill p-ok">Pago</span>' : (addDias(m.vencimento, +S.config.toleranciaDias||0) < hoje() ? '<span class="pill p-bad">Em atraso</span>' : '<span class="pill p-warn">Em aberto</span>');
+
+/* ===================== banco de dados ===================== */
+function banner(id, txt, tipo = 'info'){ let el = $('#bn-' + id); if (!txt){ el && el.remove(); return; } if (!el){ el = document.createElement('div'); el.id = 'bn-' + id; $('#banners').append(el); } el.className = 'banner ' + tipo; el.textContent = txt; }
+function erroSub(e){ console.error(e); if (e && e.code === 'permission-denied') banner('sub', 'Seu usuário não tem permissão para ver os dados. Peça ao administrador para liberar o seu e-mail.', 'bad'); else if (e && e.code === 'revoked') banner('sub', 'O acesso a esta página foi alterado. Recarregue a página.', 'bad'); else banner('sub', 'A conexão com o banco de dados caiu. Recarregue a página para reconectar.', 'bad'); }
+
+async function iniciar(){
+  window.addEventListener('hashchange', rota); rota();
+  let timer = null, db = null;
+  try { db = window.claude && window.claude.use ? await window.claude.use('db') : null; } catch(e){ db = null; }
+  if (!db){ clearTimeout(timer); banner('load', (window.PFC_HOSPEDADO ? 'Banco de dados indisponível. Recarregue a página e entre com seu usuário.' : 'Banco de dados indisponível. Abra o sistema pelo claude.ai, conectado à conta que tem acesso.'), 'bad'); return; }
+  S.db = db;
+  timer = setTimeout(() => { if (!S.carregou.socios) banner('load', 'Os dados ainda não chegaram. Verifique a internet; a página continua tentando.', 'warn'); }, 10000);
+  try { S.user = await window.claude.use('user'); } catch(e){}
+  try { S.dl = await window.claude.use('downloads'); } catch(e){}
+  try { const pode = S.user && S.user.can ? await S.user.can('data.write') : null; if (pode === false) banner('ro', 'Você está em modo de consulta: pode ver os dados, mas não alterar. Peça acesso de Colaborador ao dono do sistema.', 'warn'); } catch(e){}
+  const fim = () => { if (S.carregou.socios && S.carregou.cat){ clearTimeout(timer); banner('load', null); } };
+  db.collection('socios').onSnapshot(snap => { S.socios = new Map(snap.docs.map(d => [d.id, {id:d.id, ...d.data()}])); if (!snap.metadata.fromCache){ S.carregou.socios = true; fim(); } atualizar(); }, erroSub);
+  db.collection('categorias').onSnapshot(snap => { S.categorias = new Map(snap.docs.map(d => [d.id, {id:d.id, ...d.data()}])); if (!snap.metadata.fromCache){ S.carregou.cat = true; fim(); } atualizar(); }, erroSub);
+  db.doc('config/geral').onSnapshot(d => { if (d.exists) S.config = {...S.config, ...d.data()}; atualizar(); }, erroSub);
+  db.doc('config/catraca').onSnapshot(d => { S.catraca = d.exists ? {bloqueados:[], ...d.data()} : {bloqueados:[], confirmadoEm:null}; atualizar(); }, erroSub);
+  db.collection('mensalidades').where('status', '==', 'aberto').onSnapshot(snap => { S.abertas = snap.docs.map(d => ({id:d.id, ...d.data()})); indexMens(S.abertas); if (!snap.metadata.fromCache) S.carregou.abertas = true; atualizar(); }, erroSub);
+  assinarMes();
+  S.pronto = true;
+}
+function assinarMes(){
+  if (!S.db) return; S.unsubMes && S.unsubMes();
+  const comp = S.comp;
+  S.unsubMes = S.db.collection('mensalidades').where('competencia', '==', comp).onSnapshot(snap => { if (comp !== S.comp) return; S.mes = new Map(snap.docs.map(d => [d.id, {id:d.id, ...d.data()}])); indexMens(S.mes.values()); atualizar(); }, erroSub);
+}
+function assinarHist(socioId){
+  S.unsubHist && S.unsubHist(); S.unsubHist = null; S.hist = [];
+  if (!S.db || !socioId) return;
+  S.unsubHist = S.db.collection('mensalidades').where('socioId', '==', socioId).onSnapshot(snap => { S.hist = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => b.competencia.localeCompare(a.competencia)); indexMens(S.hist); if (S.view === 'socios' && S.ficha) renderHist(); }, erroSub);
+}
+let agendado = false;
+function atualizar(){ if (agendado) return; agendado = true; requestAnimationFrame(() => { agendado = false; calcFin(); badge(); const v = VIEWS[S.view]; v && v.update && v.update(); }); }
+function badge(){ const d = diffCatraca(), n = d.bloquear.length + d.liberar.length, b = $('#bdgCat'); b.hidden = !n; b.textContent = n; }
+
+/* ===================== rotas ===================== */
+function rota(){
+  const v = (location.hash || '#inicio').slice(1);
+  S.view = VIEWS[v] ? v : 'inicio';
+  if (S.view !== 'socios' && S.ficha){ S.ficha = null; assinarHist(null); }
+  $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.v === S.view));
+  calcFin(); VIEWS[S.view].mount(); window.scrollTo(0, 0);
+}
+const V = () => $('#view');
+
+/* ===================== INÍCIO ===================== */
+const VIEWS = {};
+VIEWS.inicio = {
+  mount(){ this.update(); },
+  update(){
+    const socios = [...S.socios.values()], ativos = socios.filter(s => s.situacao === 'ativo');
+    const deps = ativos.reduce((n, s) => n + (s.dependentes||[]).length, 0);
+    const d = diffCatraca(), bloqueadosInad = d.atual.filter(x => x.tipo === 'Titular' && x.meses > 0);
+    const emAtraso = [...S.fin.values()].reduce((t, f) => t + f.devido, 0);
+    const mes = [...S.mes.values()], previsto = mes.reduce((t,m) => t + (+m.valor||0), 0), recebido = mes.filter(m => m.status==='pago').reduce((t,m) => t + (+m.valorPago||+m.valor||0), 0);
+    const mesAtual = compAtual(), mm = mesAtual.slice(5);
+    const aniv = ativos.filter(s => s.nascimento && s.nascimento.slice(5,7) === mm).sort((a,b) => a.nascimento.slice(8).localeCompare(b.nascimento.slice(8)));
+    const catZero = [...S.categorias.values()].filter(c => !c.isento && !(+c.valor > 0));
+    const vazio = !socios.length;
+    const pct = previsto ? Math.round(recebido / previsto * 100) : 0;
+    V().innerHTML = `
+      <div class="head"><div><h1>${esc(S.config.nomeClube || 'PFC')} · Painel da secretaria</h1><p>${fmtData(hoje())} · competência ${fmtComp(S.comp)}</p></div>
+        <div class="row"><button class="btn pri" data-act="novo-socio">Novo sócio</button></div></div>
+      ${catZero.length ? `<div class="banner warn">${catZero.length === 1 ? 'A categoria' : 'As categorias'} <b>${catZero.map(c => esc(c.nome)).join(', ')}</b> ${catZero.length === 1 ? 'está' : 'estão'} sem valor de mensalidade. <a href="#config">Definir valores</a></div>` : ''}
+      ${vazio ? `<div class="card" style="margin-bottom:18px"><h2>Primeiros passos</h2><ol class="steps">
+        <li>Em <a href="#config">Configurações</a>, crie as categorias de sócio com o valor da mensalidade e o dia de vencimento.</li>
+        <li>Traga os sócios do sistema antigo em <a href="#importar">Importar Excel</a>, ou cadastre um a um em <a href="#socios">Sócios</a>.</li>
+        <li>Em <a href="#mensalidades">Mensalidades</a>, gere as mensalidades do mês e registre os pagamentos.</li>
+        <li>Em <a href="#catraca">Catraca</a>, veja quem bloquear e desbloquear e atualize o sistema da catraca.</li></ol></div>` : ''}
+      <div class="tiles">
+        <div class="tile"><span>Sócios ativos</span><b>${ativos.length}</b><small>+ ${deps} dependentes</small></div>
+        <div class="tile ${bloqueadosInad.length ? 'alert' : ''}"><span>Inadimplentes</span><b>${bloqueadosInad.length}</b><small>tolerância de ${+S.config.toleranciaDias||0} dias após o vencimento</small></div>
+        <div class="tile ${emAtraso ? 'alert' : ''}"><span>Valor em atraso</span><b>${money(emAtraso)}</b><small>mensalidades vencidas</small></div>
+        <div class="tile"><span>Recebido em ${MESES[+S.comp.slice(5)-1]}</span><b>${money(recebido)}</b><small>de ${money(previsto)} previstos (${pct}%)</small></div>
+      </div>
+      <div class="cols">
+        <div class="card"><h2>Catraca</h2>
+          ${d.bloquear.length || d.liberar.length ? `<p>Desde a última atualização${S.catraca.confirmadoEm ? ' (' + new Date(S.catraca.confirmadoEm).toLocaleString('pt-BR') + ')' : ''}:</p>
+            <ul class="list"><li><span>Para <b>bloquear</b></span><b class="pill p-bad">${d.bloquear.length}</b></li><li><span>Para <b>desbloquear</b></span><b class="pill p-ok">${d.liberar.length}</b></li></ul>
+            <p><a class="btn pri" href="#catraca">Ver lista da catraca</a></p>`
+          : `<p class="muted">Nada a alterar na catraca. ${d.atual.length} ${d.atual.length === 1 ? 'código bloqueado' : 'códigos bloqueados'} no total.</p>`}
+        </div>
+        <div class="card"><h2>Mensalidades de ${fmtComp(S.comp)}</h2>
+          ${mes.length ? `<div class="bar" aria-label="${pct}% recebido"><i style="width:${pct}%"></i></div>
+            <ul class="list" style="margin-top:8px"><li><span>Geradas</span><b>${mes.length}</b></li><li><span>Pagas</span><b>${mes.filter(m => m.status==='pago').length}</b></li><li><span>Em aberto</span><b>${mes.filter(m => m.status==='aberto').length}</b></li></ul>`
+          : `<p class="muted">As mensalidades deste mês ainda não foram geradas.</p>${ativos.length ? '<button class="btn pri" data-act="gerar">Gerar mensalidades de ' + fmtComp(S.comp) + '</button>' : ''}`}
+        </div>
+        <div class="card"><h2>Aniversariantes de ${MESES[+mm-1]}</h2>
+          ${aniv.length ? `<ul class="list">${aniv.slice(0, 12).map(s => `<li><span>${esc(s.nome)}</span><span class="muted">${s.nascimento.slice(8)}/${mm} · ${idade(s.nascimento) + (s.nascimento.slice(5) > hoje().slice(5) ? 1 : 0)} anos</span></li>`).join('')}</ul>${aniv.length > 12 ? `<p class="muted small">e mais ${aniv.length - 12}.</p>` : ''}` : '<p class="muted">Nenhum sócio ativo faz aniversário este mês.</p>'}
+        </div>
+      </div>`;
+  }
+};
+
+/* ===================== SÓCIOS ===================== */
+VIEWS.socios = {
+  mount(){
+    if (S.ficha) return montarFicha();
+    V().innerHTML = `
+      <div class="head"><div><h1>Sócios</h1><p id="sCount" class="muted"></p></div>
+        <div class="row"><button class="btn" data-act="exportar-socios">Baixar planilha</button><button class="btn pri" data-act="novo-socio">Novo sócio</button></div></div>
+      <div class="row" style="margin-bottom:12px">
+        <input id="q" type="search" placeholder="Buscar por nome, matrícula, CPF ou telefone" style="flex:1 1 280px" aria-label="Buscar sócio">
+        <select id="fSit" aria-label="Situação"><option value="">Todas as situações</option>${Object.entries(SITUACOES).map(([k,v]) => `<option value="${k}" ${k==='ativo'?'selected':''}>${v}</option>`).join('')}</select>
+        <select id="fCat" aria-label="Categoria"></select>
+        <select id="fFin" aria-label="Financeiro"><option value="">Todos</option><option value="atraso">Só em atraso</option><option value="dia">Só em dia</option></select>
+      </div>
+      <div class="tbl" id="sLista"></div>`;
+    ['q','fSit','fCat','fFin'].forEach(id => $('#' + id).addEventListener('input', () => this.update()));
+    this.update();
+  },
+  update(){
+    if (S.ficha){ if (S.ficha.aguardando) return montarFicha(); renderHist(); return; }
+    const fc = $('#fCat'); if (!fc) return; const cv = fc.value;
+    fc.innerHTML = '<option value="">Todas as categorias</option>' + [...S.categorias.values()].sort((a,b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+    fc.value = cv;
+    const q = norm($('#q').value), qd = soDig($('#q').value), sit = $('#fSit').value, fin = $('#fFin').value;
+    const lista = sociosOrd().filter(s => {
+      if (sit && s.situacao !== sit) return false;
+      if (cv && s.categoriaId !== cv) return false;
+      const f = S.fin.get(s.id), atraso = !!(f && f.vencidas.length);
+      if (fin === 'atraso' && !atraso) return false; if (fin === 'dia' && atraso) return false;
+      if (!q) return true;
+      return norm(s.nome).includes(q) || String(s.matricula) === $('#q').value.trim() || (qd.length >= 3 && (soDig(s.cpf).includes(qd) || soDig(s.celular).includes(qd) || soDig(s.telefone).includes(qd))) || (s.dependentes||[]).some(d => norm(d.nome).includes(q));
+    });
+    $('#sCount').textContent = `${lista.length} de ${S.socios.size} cadastros`;
+    $('#sLista').innerHTML = lista.length ? `<table><thead><tr><th>Matrícula</th><th>Nome</th><th>Categoria</th><th>Celular</th><th class="num">Dep.</th><th>Situação</th><th>Financeiro</th></tr></thead><tbody>
+      ${lista.map(s => `<tr class="click" data-act="abrir-socio" data-id="${s.id}" tabindex="0"><td class="mono">${esc(s.matricula)}</td><td><b>${esc(s.nome)}</b>${s.nascimento ? `<br><span class="muted small">${idade(s.nascimento)} anos</span>` : ''}</td><td>${esc(S.categorias.get(s.categoriaId)?.nome || '—')}</td><td>${esc(s.celular || s.telefone || '—')}</td><td class="num">${(s.dependentes||[]).length || ''}</td><td>${sitPill(s.situacao)}</td><td>${finPill(s)}</td></tr>`).join('')}</tbody></table>`
+      : `<div class="empty">${S.socios.size ? 'Nenhum sócio encontrado com esses filtros.' : 'Nenhum sócio cadastrado ainda. Use <a href="#importar">Importar Excel</a> ou o botão Novo sócio.'}</div>`;
+  }
+};
+
+function abrirFicha(id){ S.ficha = {id: id || null}; if (location.hash !== '#socios'){ location.hash = '#socios'; } else { rota(); } }
+function montarFicha(){
+  const id = S.ficha.id, s = id ? S.socios.get(id) : null;
+  if (id && !s){ if (S.carregou.socios){ S.ficha = null; return VIEWS.socios.mount(); } V().innerHTML = '<div class="empty">Carregando cadastro…</div>'; S.ficha.aguardando = true; return; }
+  S.ficha.aguardando = false;
+  const x = s || {matricula: proximaMatricula(), situacao:'ativo', dataAdmissao: hoje(), dependentes: [], uf: 'SP'};
+  S.ficha.deps = JSON.parse(JSON.stringify(x.dependentes || []));
+  const cats = [...S.categorias.values()].sort((a,b) => a.nome.localeCompare(b.nome));
+  const f = (k, rot, cls, extra = '') => `<label class="${cls}">${rot}<input id="f_${k}" name="${k}" value="${esc(x[k] ?? '')}" ${extra}></label>`;
+  V().innerHTML = `
+    <div class="head"><div><button class="btn link" data-act="voltar">← Voltar para a lista</button><h1 style="margin-top:6px">${s ? esc(s.nome) : 'Novo sócio'}</h1>
+      ${s ? `<p id="fichaSit">Matrícula ${esc(s.matricula)} · ${sitPill(s.situacao)} ${finPill(s)}</p>` : '<p>Preencha os dados e clique em Salvar.</p>'}</div>
+      <div class="row">${s ? '<button class="btn" data-act="excluir-socio">Excluir cadastro</button>' : ''}<button class="btn pri" data-act="salvar-socio">Salvar</button></div></div>
+    <form id="fSocio" autocomplete="off">
+      <fieldset><legend>Dados pessoais</legend><div class="form">
+        ${f('matricula','Matrícula *','c2','required inputmode="numeric"')}
+        ${f('nome','Nome completo *','c6','required')}
+        ${f('nascimento','Data de nascimento','c2','type="date"')}
+        <label class="c2">Sexo<select id="f_sexo" name="sexo"><option value=""></option>${['Feminino','Masculino','Outro'].map(o => `<option ${x.sexo===o?'selected':''}>${o}</option>`).join('')}</select></label>
+        ${f('cpf','CPF','c3','inputmode="numeric" data-mask="cpf" placeholder="000.000.000-00"')}
+        ${f('rg','RG','c3')}
+        ${f('email','E-mail','c6','type="email"')}
+      </div></fieldset>
+      <fieldset><legend>Contato e endereço</legend><div class="form">
+        ${f('celular','Celular / WhatsApp','c3','inputmode="tel" data-mask="fone" placeholder="(19) 99999-9999"')}
+        ${f('telefone','Telefone fixo','c3','inputmode="tel" data-mask="fone"')}
+        ${f('cep','CEP','c2','inputmode="numeric" data-mask="cep"')}
+        ${f('cidade','Cidade','c3')}
+        ${f('uf','UF','c1','maxlength="2" style="text-transform:uppercase"')}
+        ${f('logradouro','Endereço (rua, avenida)','c6')}
+        ${f('numero','Número','c2')}
+        ${f('complemento','Complemento','c4')}
+        ${f('bairro','Bairro','c4')}
+      </div></fieldset>
+      <fieldset><legend>Associação</legend><div class="form">
+        <label class="c4">Categoria<select id="f_categoriaId" name="categoriaId"><option value="">— escolha —</option>${cats.map(c => `<option value="${c.id}" ${x.categoriaId===c.id?'selected':''}>${esc(c.nome)} · ${c.isento ? 'isento' : money(c.valor)}</option>`).join('')}</select></label>
+        <label class="c2">Situação<select id="f_situacao" name="situacao">${Object.entries(SITUACOES).map(([k,v]) => `<option value="${k}" ${x.situacao===k?'selected':''}>${v}</option>`).join('')}</select></label>
+        ${f('dataAdmissao','Data de admissão','c3','type="date"')}
+        <label class="c3">Mensalidade especial (R$)<input id="f_valorEspecial" name="valorEspecial" inputmode="decimal" value="${+x.valorEspecial > 0 ? moneyInput(x.valorEspecial) : ''}" placeholder="vazio = valor da categoria"></label>
+        <label class="c12">Observações<textarea id="f_observacoes" name="observacoes" rows="2">${esc(x.observacoes || '')}</textarea></label>
+      </div></fieldset>
+      <fieldset><legend>Dependentes</legend><div id="deps"></div><button type="button" class="btn sm" data-act="add-dep" style="margin-top:10px">Adicionar dependente</button>
+        <p class="muted small" style="margin:8px 0 0">Cada dependente recebe um código para a catraca (matrícula-01, -02…). Ele é bloqueado junto com o titular.</p></fieldset>
+    </form>
+    ${s ? `<fieldset><legend>Mensalidades</legend><div class="row" style="justify-content:space-between;margin-bottom:10px"><span class="muted small" id="histResumo"></span><button class="btn sm" data-act="lancar-debito">Lançar mensalidade avulsa ou débito antigo</button></div><div class="tbl" id="hist"><div class="empty">Carregando…</div></div></fieldset>` : ''}`;
+  renderDeps();
+  $('#fSocio').addEventListener('input', ev => { const m = ev.target.dataset.mask; if (m === 'cpf') ev.target.value = maskCPF(ev.target.value); if (m === 'fone') ev.target.value = maskFone(ev.target.value); if (m === 'cep') ev.target.value = maskCEP(ev.target.value); ev.target.classList.remove('err'); });
+  $('#fSocio').addEventListener('submit', ev => { ev.preventDefault(); salvarSocio(); });
+  if (s) assinarHist(s.id);
+  $('#f_nome').focus();
+}
+function lerDeps(){ $$('#deps [data-i]').forEach(row => { const i = +row.dataset.i, d = S.ficha.deps[i]; $$('[data-k]', row).forEach(inp => d[inp.dataset.k] = inp.value.trim()); }); }
+function renderDeps(){
+  const el = $('#deps'); if (!el) return;
+  el.innerHTML = S.ficha.deps.length ? S.ficha.deps.map((d, i) => `<div class="form" data-i="${i}" style="align-items:end;margin-bottom:8px">
+    <label class="c4">Nome<input data-k="nome" value="${esc(d.nome)}"></label>
+    <label class="c2">Parentesco<select data-k="parentesco">${PARENTESCO.map(p => `<option ${d.parentesco===p?'selected':''}>${p}</option>`).join('')}</select></label>
+    <label class="c2">Nascimento<input type="date" data-k="nascimento" value="${esc(d.nascimento)}"></label>
+    <label class="c2">CPF<input data-k="cpf" data-mask="cpf" inputmode="numeric" value="${esc(d.cpf)}"></label>
+    <div class="c2 row"><span class="mono muted" title="Código na catraca">${esc(d.codigo || 'novo')}</span><button type="button" class="btn sm" data-act="rem-dep" data-i="${i}">Remover</button></div></div>`).join('')
+    : '<p class="muted" style="margin:0">Nenhum dependente.</p>';
+}
+function renderHist(){
+  const el = $('#hist'); if (!el) return;
+  const so = S.socios.get(S.ficha && S.ficha.id), fp = $('#fichaSit'); if (so && fp) fp.innerHTML = `Matrícula ${esc(so.matricula)} · ${sitPill(so.situacao)} ${finPill(so)}`;
+  const h = S.hist;
+  const aberto = h.filter(m => m.status === 'aberto').reduce((t,m) => t + (+m.valor||0), 0);
+  $('#histResumo').textContent = h.length ? `${h.length} registradas · em aberto: ${money(aberto)}` : '';
+  el.innerHTML = h.length ? `<table><thead><tr><th>Competência</th><th>Vencimento</th><th class="num">Valor</th><th>Situação</th><th>Pagamento</th><th></th></tr></thead><tbody>
+    ${h.map(m => `<tr><td>${fmtComp(m.competencia)}</td><td>${fmtData(m.vencimento)}</td><td class="num">${money(m.valor)}</td><td>${statusPill(m)}</td>
+      <td class="small">${m.status==='pago' ? `${fmtData(m.pagoEm)} · ${esc(FORMAS.find(f => f[0]===m.forma)?.[1] || m.forma || '')} · ${money(m.valorPago)}` : ''}</td>
+      <td class="num">${m.status==='pago' ? `<button class="btn sm" data-act="estornar" data-id="${m.id}">Estornar</button>` : `<button class="btn sm pri" data-act="receber" data-id="${m.id}">Receber</button> <button class="btn sm" data-act="cancelar-mens" data-id="${m.id}" title="Excluir esta cobrança">Excluir</button>`}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">Nenhuma mensalidade registrada para este sócio.</div>';
+}
+async function salvarSocio(){
+  if (!S.db) return toast('Banco de dados indisponível.', true);
+  lerDeps();
+  const fm = $('#fSocio'), g = k => (fm.elements[k]?.value ?? '').trim();
+  const id = S.ficha.id, antigo = id ? S.socios.get(id) : null;
+  const dados = {
+    matricula: soDig(g('matricula')) || g('matricula'), nome: g('nome').replace(/\s+/g,' '), nascimento: g('nascimento'), sexo: g('sexo'),
+    cpf: g('cpf'), rg: g('rg'), email: g('email'), celular: g('celular'), telefone: g('telefone'),
+    cep: g('cep'), logradouro: g('logradouro'), numero: g('numero'), complemento: g('complemento'), bairro: g('bairro'), cidade: g('cidade'), uf: g('uf').toUpperCase(),
+    categoriaId: g('categoriaId'), situacao: g('situacao') || 'ativo', dataAdmissao: g('dataAdmissao'),
+    valorEspecial: g('valorEspecial') ? parseMoney(g('valorEspecial')) : 0, observacoes: g('observacoes')
+  };
+  const erro = (k, msg) => { const el = fm.elements[k]; el && el.classList.add('err'); el && el.focus(); toast(msg, true); };
+  if (!dados.matricula) return erro('matricula', 'Informe a matrícula.');
+  if (!dados.nome) return erro('nome', 'Informe o nome do sócio.');
+  for (const o of S.socios.values()) if (o.id !== id && String(o.matricula) === String(dados.matricula)) return erro('matricula', `A matrícula ${dados.matricula} já é de ${o.nome}.`);
+  if (dados.cpf){ if (!cpfValido(dados.cpf)) return erro('cpf', 'CPF inválido. Confira os números.'); for (const o of S.socios.values()) if (o.id !== id && soDig(o.cpf) === soDig(dados.cpf)) return erro('cpf', `Este CPF já está no cadastro de ${o.nome} (matrícula ${o.matricula}).`); }
+  if (!dados.categoriaId) return erro('categoriaId', 'Escolha a categoria do sócio.');
+  // dependentes: mantém códigos existentes e numera os novos
+  const deps = S.ficha.deps.filter(d => d.nome);
+  let seq = deps.reduce((mx, d) => { const n = d.codigo ? parseInt(d.codigo.split('-')[1], 10) : 0; return Math.max(mx, n || 0); }, 0);
+  const matMudou = antigo && String(antigo.matricula) !== String(dados.matricula);
+  dados.dependentes = deps.map(d => { const n = d.codigo ? d.codigo.split('-')[1] : String(++seq).padStart(2,'0'); return {nome: d.nome, parentesco: d.parentesco || 'Outro', nascimento: d.nascimento || '', cpf: d.cpf || '', codigo: `${dados.matricula}-${n}`}; });
+  try {
+    if (antigo){
+      const {id: _x, ...resto} = antigo, corpo = {...resto, ...dados, atualizadoEm: agoraISO()};
+      await comRetry(() => S.db.doc('socios/' + id).set(corpo));
+      S.socios.set(id, {id, ...corpo});
+      toast('Cadastro atualizado.');
+      if (matMudou) toast('A matrícula mudou: os códigos dos dependentes também. Confira a catraca.');
+    } else {
+      const ref = S.db.collection('socios').doc();
+      const corpo = {...dados, criadoEm: agoraISO(), atualizadoEm: agoraISO()};
+      await comRetry(() => ref.set(corpo));
+      S.socios.set(ref.id, {id: ref.id, ...corpo});
+      toast('Sócio cadastrado.');
+      S.ficha = {id: ref.id};
+    }
+    montarFicha();
+  } catch(e){ console.error(e); toast(erroMsg(e), true); }
+}
+
+/* ===================== MENSALIDADES ===================== */
+VIEWS.mensalidades = {
+  modo: 'comp',
+  mount(){
+    V().innerHTML = `
+      <div class="head"><div><h1>Mensalidades</h1><p class="muted">Gere as cobranças do mês e registre cada pagamento. Cada recebimento já entra no caixa ou na conta Sicoob.</p></div></div>
+      <div class="row" style="margin-bottom:14px">
+        <select id="mModo" aria-label="Visualização"><option value="comp">Por competência</option><option value="abertas">Todas em aberto</option></select>
+        <input id="mComp" type="month" value="${S.comp}" aria-label="Competência">
+        <select id="mSt" aria-label="Situação"><option value="">Todas</option><option value="aberto">Em aberto</option><option value="pago">Pagas</option></select>
+        <input id="mQ" type="search" placeholder="Buscar nome ou matrícula" aria-label="Buscar" style="flex:1 1 200px">
+        <button class="btn pri" data-act="gerar" id="mGerar">Gerar mensalidades</button>
+      </div>
+      <div class="tiles" id="mRes"></div>
+      <div class="tbl" id="mLista"></div>`;
+    $('#mModo').value = this.modo;
+    $('#mModo').oninput = () => { this.modo = $('#mModo').value; this.update(); };
+    $('#mComp').onchange = () => { const v = $('#mComp').value; if (/^\d{4}-\d{2}$/.test(v) && v !== S.comp){ S.comp = v; S.mes = new Map(); assinarMes(); this.update(); } };
+    $('#mSt').oninput = $('#mQ').oninput = () => this.update();
+    this.update();
+  },
+  update(){
+    if (!$('#mLista')) return;
+    const porComp = this.modo === 'comp';
+    $('#mComp').hidden = !porComp; $('#mGerar').hidden = !porComp; $('#mSt').hidden = !porComp;
+    $('#mGerar').textContent = 'Gerar mensalidades de ' + fmtComp(S.comp);
+    const q = norm($('#mQ').value), st = $('#mSt').value;
+    let lista = porComp ? [...S.mes.values()] : [...S.abertas];
+    const total = lista.reduce((t,m) => t + (+m.valor||0), 0), pagas = lista.filter(m => m.status==='pago'), rec = pagas.reduce((t,m) => t + (+m.valorPago||0), 0);
+    const venc = lista.filter(m => m.status==='aberto' && addDias(m.vencimento, +S.config.toleranciaDias||0) < hoje());
+    $('#mRes').innerHTML = porComp
+      ? `<div class="tile"><span>Previsto</span><b>${money(total)}</b><small>${lista.length} mensalidades</small></div><div class="tile"><span>Recebido</span><b>${money(rec)}</b><small>${pagas.length} pagas</small></div><div class="tile ${venc.length?'alert':''}"><span>Em aberto</span><b>${money(total - pagas.reduce((t,m)=>t+(+m.valor||0),0))}</b><small>${lista.length - pagas.length} mensalidades, ${venc.length} em atraso</small></div>`
+      : `<div class="tile"><span>Total em aberto</span><b>${money(total)}</b><small>${lista.length} mensalidades</small></div><div class="tile ${venc.length?'alert':''}"><span>Já em atraso</span><b>${money(venc.reduce((t,m)=>t+(+m.valor||0),0))}</b><small>${venc.length} mensalidades</small></div>`;
+    if (st) lista = lista.filter(m => m.status === st);
+    if (q) lista = lista.filter(m => norm(m.nome).includes(q) || String(m.matricula) === $('#mQ').value.trim());
+    lista.sort(porComp ? (a,b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR') : (a,b) => a.vencimento.localeCompare(b.vencimento) || (a.nome||'').localeCompare(b.nome||''));
+    $('#mLista').innerHTML = lista.length ? `<table><thead><tr><th>Matrícula</th><th>Sócio</th>${porComp ? '' : '<th>Competência</th>'}<th>Vencimento</th><th class="num">Valor</th><th>Situação</th><th>Pagamento</th><th></th></tr></thead><tbody>
+      ${lista.map(m => { const atraso = m.status==='aberto' ? diasEntre(m.vencimento, hoje()) : 0; return `<tr><td class="mono">${esc(m.matricula)}</td><td><button class="btn link" data-act="abrir-socio" data-id="${m.socioId}" style="color:inherit;text-decoration:none;font-weight:600">${esc(m.nome)}</button></td>${porComp ? '' : `<td>${fmtCompCurta(m.competencia)}</td>`}<td>${fmtData(m.vencimento)}${atraso > 0 ? `<br><span class="small muted">${atraso} dias</span>` : ''}</td><td class="num">${money(m.valor)}</td><td>${statusPill(m)}</td>
+        <td class="small">${m.status==='pago' ? `${fmtData(m.pagoEm)} · ${esc(FORMAS.find(f => f[0]===m.forma)?.[1] || '')}` : ''}</td>
+        <td class="num">${m.status==='pago' ? `<button class="btn sm" data-act="estornar" data-id="${m.id}">Estornar</button>` : `<button class="btn sm pri" data-act="receber" data-id="${m.id}">Receber</button>`}</td></tr>`; }).join('')}</tbody></table>`
+      : `<div class="empty">${porComp ? (S.mes.size ? 'Nenhuma mensalidade com esses filtros.' : `Nenhuma mensalidade gerada para ${fmtComp(S.comp)}. Use o botão Gerar mensalidades.`) : 'Nenhuma mensalidade em aberto.'}</div>`;
+  }
+};
+
+async function gerarMensalidades(){
+  if (!S.db) return toast('Banco de dados indisponível.', true);
+  const comp = S.comp, fimMes = ultimoDia(comp), dia = +S.config.diaVencimento || 10, venc = vencimentoDe(comp, dia);
+  const ativos = sociosOrd().filter(s => s.situacao === 'ativo' && (!s.dataAdmissao || s.dataAdmissao <= fimMes));
+  const gerar = [], isentos = [], semValor = [], ja = [];
+  for (const s of ativos){
+    const c = S.categorias.get(s.categoriaId);
+    if (c && c.isento && !(+s.valorEspecial > 0)){ isentos.push(s); continue; }
+    const valor = valorDoSocio(s); if (!(valor > 0)){ semValor.push(s); continue; }
+    if (S.mes.has(`${s.id}_${comp}`)){ ja.push(s); continue; }
+    gerar.push({s, valor});
+  }
+  const total = gerar.reduce((t,g) => t + g.valor, 0);
+  modal({titulo: 'Gerar mensalidades de ' + fmtComp(comp),
+    corpo: `<p style="margin:0">Vencimento: <b>${fmtData(venc)}</b> (dia ${dia}, ajuste em Configurações).</p>
+      <ul class="list"><li><span>Serão geradas agora</span><b>${gerar.length} · ${money(total)}</b></li><li><span>Já geradas antes</span><b>${ja.length}</b></li><li><span>Isentos (remido, benemérito…)</span><b>${isentos.length}</b></li>
+      ${semValor.length ? `<li><span class="pill p-warn">Sem valor definido</span><b>${semValor.length}</b></li>` : ''}</ul>
+      ${semValor.length ? `<p class="small muted" style="margin:0">Sem valor: ${semValor.slice(0,8).map(s => esc(s.nome)).join(', ')}${semValor.length > 8 ? '…' : ''}. Defina o valor da categoria ou a mensalidade especial e gere de novo.</p>` : ''}
+      <div class="bar" id="gBar" hidden><i style="width:0"></i></div><p id="gTxt" class="small muted" style="margin:0"></p>`,
+    ok: gerar.length ? `Gerar ${gerar.length}` : null,
+    onOk: gerar.length ? async body => {
+      $('#gBar', body).hidden = false;
+      const erros = await pool(gerar, 4, ({s, valor}) => S.db.doc(`mensalidades/${s.id}_${comp}`).set({socioId: s.id, matricula: String(s.matricula), nome: s.nome, competencia: comp, vencimento: venc, valor, status: 'aberto', criadoEm: agoraISO()}),
+        (f, t) => { $('#gBar i', body).style.width = Math.round(f/t*100) + '%'; $('#gTxt', body).textContent = `${f} de ${t}`; });
+      if (erros.length){ toast(`${gerar.length - erros.length} geradas; ${erros.length} falharam. ${erroMsg(erros[0][1])}`, true); }
+      else toast(`${gerar.length} mensalidades geradas.`);
+    } : null
+  });
+}
+
+function abrirReceber(mid){
+  const m = S.mensIdx.get(mid); if (!m) return;
+  modal({titulo: 'Receber mensalidade',
+    corpo: `<p style="margin:0"><b>${esc(m.nome)}</b> · matrícula ${esc(m.matricula)}<br>${fmtComp(m.competencia)} · vencimento ${fmtData(m.vencimento)} · ${money(m.valor)}</p>
+      <div class="form"><label class="c6">Data do pagamento<input type="date" id="rData" value="${hoje()}" required></label>
+      <label class="c6">Valor recebido (R$)<input id="rValor" inputmode="decimal" value="${moneyInput(m.valor)}" required></label>
+      <label class="c12">Forma de pagamento<select id="rForma">${FORMAS.map(f => `<option value="${f[0]}">${f[1]}</option>`).join('')}</select></label>
+      <label class="c12">Observação<input id="rObs" placeholder="opcional"></label></div>
+      <p class="small" style="margin:0">Entra em: <b id="rConta">${CONTAS.caixa}</b></p>`,
+    ok: 'Confirmar recebimento',
+    onOpen: b => { $('#rForma', b).oninput = () => { $('#rConta', b).textContent = CONTAS[FORMAS.find(f => f[0] === $('#rForma', b).value)[2]]; }; },
+    onOk: async b => {
+      const valor = parseMoney($('#rValor', b).value), data = $('#rData', b).value, forma = $('#rForma', b).value, conta = FORMAS.find(f => f[0] === forma)[2], obs = $('#rObs', b).value.trim();
+      if (!(valor > 0)){ toast('Informe o valor recebido.', true); return false; }
+      if (!data){ toast('Informe a data do pagamento.', true); return false; }
+      const lref = S.db.collection('lancamentos').doc();
+      await comRetry(() => lref.set({data, tipo: 'receita', valor, conta, forma, planoConta: 'Mensalidades', centroCusto: 'Social', descricao: `Mensalidade ${fmtCompCurta(m.competencia)} · mat. ${m.matricula} · ${m.nome}`, origem: 'mensalidade', origemId: m.id, socioId: m.socioId, obs, criadoEm: agoraISO()}));
+      await comRetry(() => S.db.doc('mensalidades/' + m.id).update({status: 'pago', pagoEm: data, valorPago: valor, forma, conta, lancamentoId: lref.id, obsPagamento: obs}));
+      toast(`Recebido: ${money(valor)} de ${m.nome}.`);
+    }});
+}
+function abrirEstorno(mid){
+  const m = S.mensIdx.get(mid); if (!m) return;
+  modal({titulo: 'Estornar pagamento', perigo: true, ok: 'Estornar',
+    corpo: `<p style="margin:0">A mensalidade de <b>${fmtComp(m.competencia)}</b> de <b>${esc(m.nome)}</b> volta a ficar em aberto, e o lançamento de ${money(m.valorPago)} sai do ${CONTAS[m.conta] || 'caixa'}.</p>`,
+    onOk: async () => {
+      if (m.lancamentoId) await comRetry(() => S.db.doc('lancamentos/' + m.lancamentoId).delete());
+      await comRetry(() => S.db.doc('mensalidades/' + m.id).update({status: 'aberto', pagoEm: null, valorPago: null, forma: null, conta: null, lancamentoId: null, obsPagamento: null, estornadoEm: agoraISO()}));
+      toast('Pagamento estornado.');
+    }});
+}
+function cancelarMens(mid){
+  const m = S.mensIdx.get(mid); if (!m || m.status !== 'aberto') return;
+  modal({titulo: 'Excluir cobrança', perigo: true, ok: 'Excluir',
+    corpo: `<p style="margin:0">Excluir a mensalidade de <b>${fmtComp(m.competencia)}</b> (${money(m.valor)}) de <b>${esc(m.nome)}</b>? Use quando ela foi gerada por engano.</p>`,
+    onOk: async () => { await comRetry(() => S.db.doc('mensalidades/' + m.id).delete()); toast('Cobrança excluída.'); }});
+}
+function lancarDebito(){
+  const s = S.socios.get(S.ficha?.id); if (!s) return;
+  const sug = valorDoSocio(s);
+  modal({titulo: 'Lançar mensalidade avulsa',
+    corpo: `<p style="margin:0">Para <b>${esc(s.nome)}</b>. Use também para trazer débitos antigos do sistema anterior.</p>
+      <div class="form"><label class="c6">Competência (mês)<input type="month" id="dComp" value="${compAtual()}" required></label>
+      <label class="c6">Valor (R$)<input id="dValor" inputmode="decimal" value="${sug ? moneyInput(sug) : ''}" required></label>
+      <label class="c12">Vencimento<input type="date" id="dVenc" value="${vencimentoDe(compAtual(), +S.config.diaVencimento||10)}"></label></div>`,
+    ok: 'Lançar',
+    onOpen: b => { $('#dComp', b).onchange = () => { const c = $('#dComp', b).value; if (c) $('#dVenc', b).value = vencimentoDe(c, +S.config.diaVencimento||10); }; },
+    onOk: async b => {
+      const comp = $('#dComp', b).value, valor = parseMoney($('#dValor', b).value), venc = $('#dVenc', b).value || vencimentoDe(comp, +S.config.diaVencimento||10);
+      if (!/^\d{4}-\d{2}$/.test(comp)){ toast('Informe a competência.', true); return false; }
+      if (!(valor > 0)){ toast('Informe o valor.', true); return false; }
+      const id = `${s.id}_${comp}`;
+      if (S.hist.some(m => m.id === id)){ toast(`Já existe mensalidade de ${fmtComp(comp)} para este sócio.`, true); return false; }
+      await comRetry(() => S.db.doc('mensalidades/' + id).set({socioId: s.id, matricula: String(s.matricula), nome: s.nome, competencia: comp, vencimento: venc, valor, status: 'aberto', criadoEm: agoraISO(), avulsa: true}));
+      toast('Mensalidade lançada.');
+    }});
+}
+
+/* ===================== CATRACA ===================== */
+VIEWS.catraca = {
+  mount(){ this.update(); },
+  update(){
+    const d = diffCatraca(), conf = S.catraca.confirmadoEm;
+    const inad = d.atual.filter(x => x.tipo === 'Titular' && x.meses > 0);
+    const linha = x => `<tr><td class="mono">${esc(x.codigo)}</td><td>${esc(x.nome)}${x.tipo === 'Dependente' ? ' <span class="pill p-info">dep.</span>' : ''}</td><td class="small">${esc(x.motivo)}</td></tr>`;
+    V().innerHTML = `
+      <div class="head"><div><h1>Catraca</h1><p class="muted">Lista de quem deve ficar bloqueado. Depois de alterar no sistema da catraca, clique em <b>Já atualizei a catraca</b>.</p></div>
+        <div class="row"><button class="btn" data-act="baixar-catraca">Baixar lista completa</button><button class="btn pri" data-act="confirmar-catraca" ${d.bloquear.length || d.liberar.length ? '' : 'disabled'}>Já atualizei a catraca</button></div></div>
+      <p class="small muted">Regra: bloqueia sócio suspenso, desligado ou com mensalidade vencida há mais de ${+S.config.toleranciaDias||0} dias${S.config.incluirDependentes !== false ? ', junto com os dependentes' : ''}. Última atualização confirmada: <b>${conf ? new Date(conf).toLocaleString('pt-BR') : 'nunca'}</b>.</p>
+      <div class="cols" style="margin-bottom:18px">
+        <div class="card" style="border-top:3px solid var(--bad)"><h2>Bloquear agora</h2><div class="big">${d.bloquear.length}</div>
+          ${d.bloquear.length ? `<p class="small muted">Códigos para bloquear na catraca:</p><div class="codes">${d.bloquear.map(x => esc(x.codigo)).join(', ')}</div><p><button class="btn sm" data-act="copiar" data-txt="${esc(d.bloquear.map(x => x.codigo).join('\n'))}">Copiar códigos</button></p>
+            <div class="tbl"><table><tbody>${d.bloquear.map(linha).join('')}</tbody></table></div>` : '<p class="muted">Ninguém novo para bloquear.</p>'}</div>
+        <div class="card" style="border-top:3px solid var(--ok)"><h2>Desbloquear agora</h2><div class="big">${d.liberar.length}</div>
+          ${d.liberar.length ? `<p class="small muted">Pagaram ou foram reativados:</p><div class="codes">${d.liberar.map(esc).join(', ')}</div><p><button class="btn sm" data-act="copiar" data-txt="${esc(d.liberar.join('\n'))}">Copiar códigos</button></p>
+            <div class="tbl"><table><tbody>${d.liberar.map(c => `<tr><td class="mono">${esc(c)}</td><td>${esc(nomePorCodigo(c))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">Ninguém para desbloquear.</p>'}</div>
+      </div>
+      <h2>Inadimplentes · ${inad.length} ${inad.length === 1 ? 'sócio' : 'sócios'} · ${money(inad.reduce((t,x) => t + x.devido, 0))}</h2>
+      <div class="tbl" style="margin-bottom:18px">${inad.length ? `<table><thead><tr><th>Matrícula</th><th>Sócio</th><th class="num">Meses</th><th class="num">Devido</th><th>Celular</th><th></th></tr></thead><tbody>
+        ${inad.sort((a,b) => b.devido - a.devido).map(x => { const cel = soDig(x.s.celular || x.s.telefone); const msg = encodeURIComponent(`Olá, ${x.s.nome.split(' ')[0]}! Aqui é a secretaria do ${S.config.nomeClube || 'clube'}. Consta em aberto ${x.meses} mensalidade(s), total de ${money(x.devido)}. Pode regularizar por PIX ou na secretaria. Obrigado!`);
+          return `<tr><td class="mono">${esc(x.codigo)}</td><td><button class="btn link" data-act="abrir-socio" data-id="${x.s.id}" style="color:inherit;text-decoration:none;font-weight:600">${esc(x.nome)}</button></td><td class="num">${x.meses}</td><td class="num">${money(x.devido)}</td><td>${esc(x.s.celular || x.s.telefone || '—')}</td>
+          <td>${cel.length >= 10 ? `<a class="btn sm" href="https://wa.me/55${cel}?text=${msg}" target="_blank" rel="noopener">Cobrar no WhatsApp</a>` : ''}</td></tr>`; }).join('')}</tbody></table>` : '<div class="empty">Nenhum inadimplente.</div>'}</div>
+      <h2>Todos os bloqueados · ${d.atual.length}</h2>
+      <div class="tbl">${d.atual.length ? `<table><thead><tr><th>Código</th><th>Nome</th><th>Motivo</th></tr></thead><tbody>${d.atual.map(linha).join('')}</tbody></table>` : '<div class="empty">Nenhum código bloqueado.</div>'}</div>`;
+  }
+};
+async function confirmarCatraca(){
+  const d = diffCatraca();
+  modal({titulo: 'Confirmar atualização da catraca',
+    corpo: `<p style="margin:0">Confirme que já fez no sistema da catraca:</p><ul class="list"><li><span>Bloqueios</span><b>${d.bloquear.length}</b></li><li><span>Desbloqueios</span><b>${d.liberar.length}</b></li></ul><p class="small muted" style="margin:0">A partir daqui, a lista mostra só as próximas mudanças.</p>`,
+    ok: 'Sim, já atualizei',
+    onOk: async () => { await comRetry(() => S.db.doc('config/catraca').set({bloqueados: d.atual.map(x => x.codigo), confirmadoEm: agoraISO(), total: d.atual.length})); toast('Catraca marcada como atualizada.'); }});
+}
+
+/* ===================== IMPORTAR ===================== */
+const CAMPOS = [
+  ['matricula','Matrícula',['matricula','matr','codigo','cod socio','n socio','numero socio','id']],
+  ['nome','Nome',['nome completo','nome do socio','nome']],
+  ['nascimento','Data de nascimento',['nascimento','data nasc','dt nasc','nasc']],
+  ['cpf','CPF',['cpf']],
+  ['rg','RG',['rg','identidade']],
+  ['sexo','Sexo',['sexo','genero']],
+  ['email','E-mail',['e-mail','email']],
+  ['celular','Celular / WhatsApp',['celular','whatsapp','whats','cel']],
+  ['telefone','Telefone',['telefone','fone','tel']],
+  ['cep','CEP',['cep']],
+  ['logradouro','Endereço (rua)',['endereco','logradouro','rua']],
+  ['numero','Número do endereço',['numero','num','nº','no']],
+  ['complemento','Complemento',['complemento','compl']],
+  ['bairro','Bairro',['bairro']],
+  ['cidade','Cidade',['cidade','municipio']],
+  ['uf','UF',['uf','estado']],
+  ['categoria','Categoria',['categoria','tipo socio','tipo de socio','plano','tipo']],
+  ['situacao','Situação',['situacao','status','ativo']],
+  ['dataAdmissao','Data de admissão',['admissao','data de entrada','entrada','inscricao','data cadastro','cadastro']],
+  ['observacoes','Observações',['observacoes','observacao','obs']]
+];
+const IMP = {wb: null, linhas: [], cab: [], map: {}, arquivo: ''};
+function valData(v){
+  if (v === '' || v == null) return '';
+  if (typeof v === 'number' && v > 1000 && v < 80000){ const d = new Date(Math.round((v - 25569) * 86400000)); return d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0') + '-' + String(d.getUTCDate()).padStart(2,'0'); }
+  if (v instanceof Date) return iso(v);
+  const s = String(v).trim(); let m;
+  if ((m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/))){ let y = +m[3]; if (y < 100) y += y > 30 ? 1900 : 2000; return `${y}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`; }
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return `${m[1]}-${m[2]}-${m[3]}`;
+  return '';
+}
+function valSit(v){ const s = norm(v); if (!s) return 'ativo'; if (/susp|bloq/.test(s)) return 'suspenso'; if (/deslig|inativ|cancel|exclu|falec|^n|^0|false/.test(s)) return 'desligado'; return 'ativo'; }
+function valSexo(v){ const s = norm(v); if (!s) return ''; if (s[0] === 'f') return 'Feminino'; if (s[0] === 'm') return 'Masculino'; return 'Outro'; }
+function adivinhar(cab){
+  const usados = new Set(), map = {}, nc = cab.map(norm);
+  for (const [k,, chaves] of CAMPOS){
+    let idx = -1;
+    for (const ch of chaves){ idx = nc.findIndex((h, i) => !usados.has(i) && h === ch); if (idx >= 0) break; }
+    if (idx < 0) for (const ch of chaves){ if (ch.length < 3) continue; idx = nc.findIndex((h, i) => !usados.has(i) && h.includes(ch)); if (idx >= 0) break; }
+    if (idx >= 0){ usados.add(idx); map[k] = idx; }
+  }
+  return map;
+}
+VIEWS.importar = {
+  mount(){
+    V().innerHTML = `
+      <div class="head"><div><h1>Importar sócios do Excel</h1><p class="muted">Traga a planilha do sistema antigo. Você escolhe qual coluna vai para cada campo antes de importar.</p></div></div>
+      ${typeof XLSX === 'undefined' ? '<div class="banner bad">O leitor de planilhas não carregou. Verifique a internet e recarregue a página.</div>' : ''}
+      <div class="card" style="margin-bottom:16px"><div class="row"><label style="flex:1 1 300px">Arquivo (.xlsx, .xls ou .csv)<input type="file" id="iArq" accept=".xlsx,.xls,.csv,.ods"></label>
+        <label id="iAbaL" hidden>Aba da planilha<select id="iAba"></select></label></div></div>
+      <div id="iMap"></div>`;
+    $('#iArq').onchange = async ev => {
+      const f = ev.target.files[0]; if (!f) return;
+      try { IMP.wb = XLSX.read(await f.arrayBuffer(), {type: 'array', cellDates: false}); IMP.arquivo = f.name; }
+      catch(e){ console.error(e); toast('Não consegui ler este arquivo. Salve como .xlsx e tente de novo.', true); return; }
+      const abas = IMP.wb.SheetNames; $('#iAba').innerHTML = abas.map(a => `<option>${esc(a)}</option>`).join(''); $('#iAbaL').hidden = abas.length < 2;
+      $('#iAba').onchange = () => carregarAba($('#iAba').value);
+      carregarAba(abas[0]);
+    };
+    if (IMP.wb) renderMapa();
+  },
+  update(){}
+};
+function carregarAba(nome){
+  const rows = XLSX.utils.sheet_to_json(IMP.wb.Sheets[nome], {header: 1, raw: true, defval: ''});
+  const hi = rows.findIndex(r => r.filter(c => String(c).trim() !== '').length >= 2);
+  if (hi < 0){ $('#iMap').innerHTML = '<div class="banner warn">Esta aba parece vazia.</div>'; return; }
+  IMP.cab = rows[hi].map((c, i) => String(c).trim() || `Coluna ${i+1}`);
+  IMP.linhas = rows.slice(hi + 1).filter(r => r.some(c => String(c).trim() !== ''));
+  IMP.map = adivinhar(IMP.cab);
+  renderMapa();
+}
+function linhaParaSocio(r){
+  const g = k => IMP.map[k] != null && IMP.map[k] !== '' ? r[IMP.map[k]] : '';
+  const t = k => String(g(k) ?? '').trim();
+  return {
+    matricula: soDig(t('matricula')) || t('matricula'), nome: t('nome').replace(/\s+/g, ' '), nascimento: valData(g('nascimento')),
+    cpf: soDig(t('cpf')) ? maskCPF(soDig(t('cpf')).padStart(11, '0')) : '', rg: t('rg'), sexo: valSexo(t('sexo')), email: t('email').toLowerCase(),
+    celular: soDig(t('celular')) ? maskFone(t('celular')) : '', telefone: soDig(t('telefone')) ? maskFone(t('telefone')) : '',
+    cep: soDig(t('cep')) ? maskCEP(soDig(t('cep')).padStart(8, '0')) : '', logradouro: t('logradouro'), numero: t('numero'), complemento: t('complemento'), bairro: t('bairro'), cidade: t('cidade'), uf: t('uf').toUpperCase().slice(0, 2),
+    categoria: t('categoria'), situacao: IMP.map.situacao != null && IMP.map.situacao !== '' ? valSit(t('situacao')) : 'ativo', dataAdmissao: valData(g('dataAdmissao')), observacoes: t('observacoes')
+  };
+}
+function renderMapa(){
+  const el = $('#iMap'); if (!el || !IMP.cab.length) return;
+  const prev = IMP.linhas.slice(0, 5).map(linhaParaSocio);
+  const comNome = IMP.linhas.filter(r => linhaParaSocio(r).nome).length;
+  const porMat = new Map([...S.socios.values()].map(s => [String(s.matricula), s]));
+  const existentes = IMP.linhas.map(linhaParaSocio).filter(x => x.nome && x.matricula && porMat.has(String(x.matricula))).length;
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px"><h2>1 · Ligue as colunas</h2><p class="muted small" style="margin-top:0">${esc(IMP.arquivo)}: ${IMP.linhas.length} linhas, ${comNome} com nome. Já sugeri as ligações pelo título das colunas; confira.</p>
+      <div class="form">${CAMPOS.map(([k, rot]) => `<label class="c3">${rot}${k === 'nome' ? ' *' : ''}<select data-campo="${k}"><option value="">— não importar —</option>${IMP.cab.map((h, i) => `<option value="${i}" ${IMP.map[k] === i ? 'selected' : ''}>${esc(h)}</option>`).join('')}</select></label>`).join('')}</div></div>
+    <div class="card" style="margin-bottom:16px"><h2>2 · Confira as primeiras linhas</h2>
+      <div class="tbl"><table><thead><tr><th>Matrícula</th><th>Nome</th><th>Nascimento</th><th>CPF</th><th>Celular</th><th>Cidade</th><th>Categoria</th><th>Situação</th></tr></thead><tbody>
+        ${prev.map(x => `<tr><td class="mono">${esc(x.matricula || 'auto')}</td><td>${esc(x.nome) || '<span class="pill p-warn">sem nome</span>'}</td><td>${fmtData(x.nascimento)}</td><td>${esc(x.cpf)}${x.cpf && !cpfValido(x.cpf) ? ' <span class="pill p-warn">inválido</span>' : ''}</td><td>${esc(x.celular || x.telefone)}</td><td>${esc(x.cidade)}</td><td>${esc(x.categoria || '—')}</td><td>${sitPill(x.situacao)}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card"><h2>3 · Importar</h2>
+      ${existentes ? `<p>${existentes} ${existentes === 1 ? 'matrícula já existe' : 'matrículas já existem'} no sistema.</p><label class="chk"><input type="radio" name="iDup" value="atualizar" checked> Atualizar os dados desses sócios</label><label class="chk"><input type="radio" name="iDup" value="ignorar"> Manter como está e ignorar essas linhas</label>` : ''}
+      <p class="small muted">Linhas sem nome são ignoradas. Linhas sem matrícula recebem a próxima livre. Categorias que ainda não existem são criadas, sem valor: defina os valores depois em Configurações. CPFs inválidos são importados e ficam marcados para revisão.</p>
+      <div class="row"><button class="btn pri" id="iGo" ${comNome && IMP.map.nome != null ? '' : 'disabled'}>Importar ${comNome} sócios</button></div>
+      <div class="bar" id="iBar" hidden style="margin-top:12px"><i style="width:0"></i></div><p id="iRes" class="small"></p></div>`;
+  $$('[data-campo]', el).forEach(sel => sel.onchange = () => { const v = sel.value; IMP.map[sel.dataset.campo] = v === '' ? null : +v; renderMapa(); });
+  $('#iGo').onclick = importar;
+}
+async function importar(){
+  if (!S.db) return toast('Banco de dados indisponível.', true);
+  const btn = $('#iGo'); btn.disabled = true;
+  const dup = ($('input[name="iDup"]:checked') || {}).value || 'atualizar';
+  const regs = IMP.linhas.map(linhaParaSocio).filter(x => x.nome);
+  try {
+    // categorias
+    const cats = new Map([...S.categorias.values()].map(c => [norm(c.nome), c.id]));
+    for (const nome of [...new Set(regs.map(r => r.categoria).filter(Boolean))]){
+      if (cats.has(norm(nome))) continue;
+      const ref = S.db.collection('categorias').doc(); const isento = /remid|benem|honor|isent/.test(norm(nome));
+      await comRetry(() => ref.set({nome, valor: 0, isento, criadoEm: agoraISO()})); cats.set(norm(nome), ref.id);
+    }
+    const porMat = new Map([...S.socios.values()].map(s => [String(s.matricula), s]));
+    let prox = parseInt(proximaMatricula(), 10); const vistos = new Set();
+    const tarefas = []; let ignorados = 0;
+    for (const r of regs){
+      if (!r.matricula || vistos.has(String(r.matricula))){ while (porMat.has(String(prox)) || vistos.has(String(prox))) prox++; r.matricula = String(prox++); }
+      vistos.add(String(r.matricula));
+      const {categoria, ...dados} = r; dados.categoriaId = categoria ? cats.get(norm(categoria)) : '';
+      const ex = porMat.get(String(r.matricula));
+      if (ex){ if (dup === 'ignorar'){ ignorados++; continue; } const upd = {}; for (const [k,v] of Object.entries(dados)) if (v !== '' && v != null) upd[k] = v; upd.atualizadoEm = agoraISO(); tarefas.push(() => S.db.doc('socios/' + ex.id).update(upd)); }
+      else { const doc = {...dados, dependentes: [], valorEspecial: 0, criadoEm: agoraISO(), atualizadoEm: agoraISO(), importadoDe: IMP.arquivo}; if (!doc.categoriaId) doc.categoriaId = ''; tarefas.push(() => S.db.collection('socios').doc().set(doc)); }
+    }
+    $('#iBar').hidden = false;
+    const erros = await pool(tarefas, 4, fn => fn(), (f, t) => { $('#iBar i').style.width = Math.round(f/t*100) + '%'; $('#iRes').textContent = `${f} de ${t}…`; });
+    $('#iRes').innerHTML = `<b>Pronto.</b> ${tarefas.length - erros.length} sócios importados ou atualizados${ignorados ? `, ${ignorados} ignorados` : ''}${erros.length ? `, <span style="color:var(--bad)">${erros.length} com erro (${esc(erroMsg(erros[0][1]))})</span>` : ''}. <a href="#socios">Ver sócios</a>`;
+    toast('Importação concluída.');
+  } catch(e){ console.error(e); toast(erroMsg(e), true); btn.disabled = false; }
+}
+
+/* ===================== CONFIGURAÇÕES ===================== */
+VIEWS.config = {
+  mount(){
+    const c = S.config;
+    V().innerHTML = `
+      <div class="head"><div><h1>Configurações</h1></div></div>
+      <form id="fCfg"><fieldset><legend>Regras gerais</legend><div class="form">
+        <label class="c4">Nome do clube<input id="cNome" value="${esc(c.nomeClube || '')}"></label>
+        <label class="c2">Dia do vencimento<input id="cDia" type="number" min="1" max="28" value="${+c.diaVencimento || 10}"></label>
+        <label class="c3">Tolerância antes de bloquear (dias)<input id="cTol" type="number" min="0" max="90" value="${+c.toleranciaDias || 0}"></label>
+        <label class="c3 chk" style="align-self:end;padding-bottom:9px"><input type="checkbox" id="cDep" ${c.incluirDependentes !== false ? 'checked' : ''}> Bloquear dependentes junto</label>
+        <div class="c12"><button class="btn pri" type="submit">Salvar regras</button></div></div></fieldset></form>
+      <fieldset><legend>Categorias de sócio</legend><div id="cCats"></div>
+        <div class="row" style="margin-top:12px"><button class="btn pri" data-act="nova-cat">Nova categoria</button><span id="cSug"></span></div></fieldset>
+      <fieldset><legend>Cópia de segurança</legend><p style="margin-top:0">Baixe todos os sócios em planilha Excel. Guarde uma cópia por mês.</p><button class="btn" data-act="exportar-socios">Baixar planilha de sócios</button></fieldset>
+      <fieldset><legend>Quem pode usar</legend><p style="margin:0" class="small">${window.PFC_HOSPEDADO ? 'Cada pessoa entra com o próprio e-mail e senha. Para dar acesso a alguém, o administrador cria o usuário no Firebase (Authentication) e acrescenta o e-mail na lista das regras do banco (Firestore, aba Regras).' : `O sistema fica no claude.ai. Para a secretária usar, compartilhe esta página com ela como <b>Colaborador</b> ou <b>Editor</b>; quem recebe como Leitor só consulta. Os dados ficam visíveis apenas para quem tem acesso de Colaborador para cima.`}</p></fieldset>`;
+    this.sujo = false; $('#fCfg').oninput = () => { this.sujo = true; };
+    $('#fCfg').onsubmit = async ev => {
+      ev.preventDefault(); if (!S.db) return toast('Banco de dados indisponível.', true);
+      const dia = Math.min(28, Math.max(1, parseInt($('#cDia').value, 10) || 10)), tol = Math.min(90, Math.max(0, parseInt($('#cTol').value, 10) || 0));
+      try { await comRetry(() => S.db.doc('config/geral').set({nomeClube: $('#cNome').value.trim() || 'PFC', diaVencimento: dia, toleranciaDias: tol, incluirDependentes: $('#cDep').checked, atualizadoEm: agoraISO()})); this.sujo = false; toast('Regras salvas.'); }
+      catch(e){ toast(erroMsg(e), true); }
+    };
+    this.update();
+  },
+  update(){
+    const el = $('#cCats'); if (!el) return;
+    if (!this.sujo){ const c = S.config; $('#cNome').value = c.nomeClube || ''; $('#cDia').value = +c.diaVencimento || 10; $('#cTol').value = +c.toleranciaDias || 0; $('#cDep').checked = c.incluirDependentes !== false; }
+    const cats = [...S.categorias.values()].sort((a,b) => a.nome.localeCompare(b.nome));
+    const qtd = id => [...S.socios.values()].filter(s => s.categoriaId === id && s.situacao === 'ativo').length;
+    el.innerHTML = cats.length ? `<div class="tbl"><table><thead><tr><th>Categoria</th><th class="num">Mensalidade</th><th class="num">Sócios ativos</th><th class="num">Receita mensal</th><th></th></tr></thead><tbody>
+      ${cats.map(c => `<tr><td><b>${esc(c.nome)}</b>${c.descricao ? `<br><span class="small muted">${esc(c.descricao)}</span>` : ''}</td><td class="num">${c.isento ? '<span class="pill p-info">Isento</span>' : (+c.valor > 0 ? money(c.valor) : '<span class="pill p-warn">sem valor</span>')}</td><td class="num">${qtd(c.id)}</td><td class="num">${c.isento ? '—' : money(qtd(c.id) * (+c.valor||0))}</td>
+        <td class="num"><button class="btn sm" data-act="editar-cat" data-id="${c.id}">Editar</button> <button class="btn sm" data-act="excluir-cat" data-id="${c.id}">Excluir</button></td></tr>`).join('')}</tbody></table></div>`
+      : '<p class="muted" style="margin:0">Nenhuma categoria ainda.</p>';
+    $('#cSug').innerHTML = cats.length ? '' : '<button class="btn" data-act="cats-sugeridas">Criar categorias sugeridas</button>';
+  }
+};
+function editarCat(id){
+  const c = id ? S.categorias.get(id) : {nome:'', valor:0, isento:false, descricao:''};
+  modal({titulo: id ? 'Editar categoria' : 'Nova categoria',
+    corpo: `<div class="form"><label class="c8">Nome<input id="kNome" value="${esc(c.nome)}" required></label><label class="c4">Mensalidade (R$)<input id="kValor" inputmode="decimal" value="${+c.valor > 0 ? moneyInput(c.valor) : ''}"></label>
+      <label class="c12">Descrição<input id="kDesc" value="${esc(c.descricao || '')}" placeholder="ex.: titular + cônjuge + filhos até 21 anos"></label>
+      <label class="c12 chk"><input type="checkbox" id="kIs" ${c.isento ? 'checked' : ''}> Isenta de mensalidade (remido, benemérito, honorário)</label></div>`,
+    ok: 'Salvar',
+    onOk: async b => {
+      const nome = $('#kNome', b).value.trim(); if (!nome){ toast('Informe o nome.', true); return false; }
+      const dados = {nome, valor: parseMoney($('#kValor', b).value), descricao: $('#kDesc', b).value.trim(), isento: $('#kIs', b).checked, atualizadoEm: agoraISO()};
+      if (id) await comRetry(() => S.db.doc('categorias/' + id).update(dados)); else await comRetry(() => S.db.collection('categorias').doc().set({...dados, criadoEm: agoraISO()}));
+      toast('Categoria salva.');
+    }});
+}
+function excluirCat(id){
+  const c = S.categorias.get(id); const n = [...S.socios.values()].filter(s => s.categoriaId === id).length;
+  if (n) return toast(`Há ${n} sócios na categoria ${c.nome}. Mude a categoria deles antes de excluir.`, true);
+  modal({titulo: 'Excluir categoria', perigo: true, ok: 'Excluir', corpo: `<p style="margin:0">Excluir a categoria <b>${esc(c.nome)}</b>?</p>`, onOk: async () => { await comRetry(() => S.db.doc('categorias/' + id).delete()); toast('Categoria excluída.'); }});
+}
+async function catsSugeridas(){
+  const sug = [['Contribuinte','Titular individual',false],['Familiar','Titular com cônjuge e filhos',false],['Remido','Quitou a contribuição; não paga mensalidade',true],['Benemérito','Título honorário concedido pela diretoria',true]];
+  try { for (const [nome, descricao, isento] of sug) await comRetry(() => S.db.collection('categorias').doc().set({nome, descricao, isento, valor: 0, criadoEm: agoraISO()})); toast('Categorias criadas. Agora defina os valores das mensalidades.'); }
+  catch(e){ toast(erroMsg(e), true); }
+}
+
+/* ===================== exportações ===================== */
+async function salvarArquivo(nome, linhas, aba){
+  if (typeof XLSX === 'undefined') return toast('O gerador de planilhas não carregou. Recarregue a página.', true);
+  if (!S.dl) return toast('Download indisponível nesta visualização.', true);
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(linhas), aba);
+  const buf = XLSX.write(wb, {bookType: 'xlsx', type: 'array'});
+  try { await S.dl.save({filename: nome, data: new Uint8Array(buf)}); }
+  catch(e){ if (e && e.code !== 'declined') toast('Não foi possível baixar o arquivo.', true); }
+}
+function exportarSocios(){
+  const linhas = [];
+  for (const s of sociosOrd()){
+    const f = S.fin.get(s.id);
+    linhas.push({'Matrícula': s.matricula, 'Tipo': 'Titular', 'Nome': s.nome, 'Nascimento': fmtData(s.nascimento), 'CPF': s.cpf || '', 'RG': s.rg || '', 'Sexo': s.sexo || '', 'E-mail': s.email || '', 'Celular': s.celular || '', 'Telefone': s.telefone || '',
+      'CEP': s.cep || '', 'Endereço': s.logradouro || '', 'Número': s.numero || '', 'Complemento': s.complemento || '', 'Bairro': s.bairro || '', 'Cidade': s.cidade || '', 'UF': s.uf || '',
+      'Categoria': S.categorias.get(s.categoriaId)?.nome || '', 'Situação': SITUACOES[s.situacao] || '', 'Admissão': fmtData(s.dataAdmissao), 'Mensalidades em atraso': f ? f.vencidas.length : 0, 'Valor em atraso': f ? f.devido : 0, 'Observações': s.observacoes || ''});
+    for (const d of s.dependentes || []) linhas.push({'Matrícula': d.codigo, 'Tipo': 'Dependente (' + (d.parentesco || '') + ')', 'Nome': d.nome, 'Nascimento': fmtData(d.nascimento), 'CPF': d.cpf || ''});
+  }
+  if (!linhas.length) return toast('Não há sócios para exportar.', true);
+  salvarArquivo(`socios-${(S.config.nomeClube||'PFC').replace(/\W+/g,'-')}-${hoje()}.xlsx`, linhas, 'Sócios');
+}
+function baixarCatraca(){
+  const d = diffCatraca(); if (!d.atual.length) return toast('Não há ninguém bloqueado.', true);
+  salvarArquivo(`catraca-bloqueados-${hoje()}.xlsx`, d.atual.map(x => ({'Código': x.codigo, 'Nome': x.nome, 'Tipo': x.tipo, 'Motivo': x.motivo, 'Valor devido': x.devido || '', 'Celular': x.tipo === 'Titular' ? (x.s.celular || x.s.telefone || '') : ''})), 'Bloqueados');
+}
+
+/* ===================== ações (cliques) ===================== */
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id;
+  if (el.tagName === 'A' && el.getAttribute('href') && !el.getAttribute('href').startsWith('#')) return;
+  ev.preventDefault();
+  const precisaDb = ['salvar-socio','excluir-socio','receber','estornar','gerar','confirmar-catraca','nova-cat','editar-cat','excluir-cat','cats-sugeridas','lancar-debito','cancelar-mens'];
+  if (precisaDb.includes(act) && !S.db) return toast('Banco de dados indisponível. Recarregue a página.', true);
+  switch (act){
+    case 'novo-socio': return abrirFicha(null);
+    case 'abrir-socio': if ($('#dlg').open) $('#dlg').close(); return abrirFicha(id);
+    case 'voltar': S.ficha = null; assinarHist(null); return VIEWS.socios.mount();
+    case 'salvar-socio': return salvarSocio();
+    case 'excluir-socio': {
+      const s = S.socios.get(S.ficha.id);
+      if (S.hist.length) return toast('Este sócio tem mensalidades registradas. Para tirá-lo do clube, mude a situação para Desligado.', true);
+      return modal({titulo: 'Excluir cadastro', perigo: true, ok: 'Excluir', corpo: `<p style="margin:0">Excluir de vez o cadastro de <b>${esc(s.nome)}</b>? Para quem saiu do clube, prefira mudar a situação para Desligado.</p>`,
+        onOk: async () => { await comRetry(() => S.db.doc('socios/' + s.id).delete()); toast('Cadastro excluído.'); S.ficha = null; assinarHist(null); VIEWS.socios.mount(); }});
+    }
+    case 'add-dep': lerDeps(); S.ficha.deps.push({nome:'', parentesco:'Filho(a)', nascimento:'', cpf:''}); renderDeps(); { const l = $$('#deps [data-k="nome"]').pop(); l && l.focus(); } return;
+    case 'rem-dep': lerDeps(); S.ficha.deps.splice(+el.dataset.i, 1); return renderDeps();
+    case 'receber': return abrirReceber(id);
+    case 'estornar': return abrirEstorno(id);
+    case 'cancelar-mens': return cancelarMens(id);
+    case 'lancar-debito': return lancarDebito();
+    case 'gerar': return gerarMensalidades();
+    case 'confirmar-catraca': return confirmarCatraca();
+    case 'baixar-catraca': return baixarCatraca();
+    case 'exportar-socios': return exportarSocios();
+    case 'nova-cat': return editarCat(null);
+    case 'editar-cat': return editarCat(id);
+    case 'excluir-cat': return excluirCat(id);
+    case 'cats-sugeridas': return catsSugeridas();
+    case 'copiar': {
+      const txt = el.dataset.txt;
+      navigator.clipboard.writeText(txt).then(() => toast('Códigos copiados. Cole no sistema da catraca.'))
+        .catch(() => modal({titulo: 'Copiar códigos', corpo: `<textarea rows="8" style="width:100%" readonly>${esc(txt)}</textarea><p class="small muted" style="margin:0">Selecione tudo (Ctrl+A) e copie (Ctrl+C).</p>`, ok: null, semCancelar: true, onOpen: b => $('textarea', b).select()}));
+      return;
+    }
+  }
+});
+document.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target.matches('tr[data-act]')) ev.target.click(); });
+
+$('#nav').addEventListener('click', ev => {
+  const a = ev.target.closest('a'); if (!a) return;
+  if (a.dataset.v === 'socios' && S.ficha){ S.ficha = null; assinarHist(null); }
+  if (location.hash === a.getAttribute('href') || (!location.hash && a.dataset.v === 'inicio')){ ev.preventDefault(); rota(); }
+});
+iniciar();
+</script>
+</body>
+</html>
